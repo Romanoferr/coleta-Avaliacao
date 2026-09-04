@@ -1,0 +1,267 @@
+import type { FormDefinition, FormField } from "../form-engine/types";
+
+const opt = (label: string) => ({ value: label, label });
+
+const counter = (id: string, label: string): FormField => ({
+  id,
+  label,
+  type: "counter",
+  min: 0,
+});
+
+export const landForm: FormDefinition = {
+  propertyType: "land",
+  title: "Terreno",
+  subtitle: "Unidade isolada sem construção",
+  sections: [
+    {
+      id: "identificacao",
+      title: "Identificação",
+      description: "Cabeçalho da vistoria.",
+      order: 1,
+      fields: [
+        { id: "os", label: "O.S. Nº", type: "text", placeholder: "Ex.: 1234", required: true },
+        { id: "data_vistoria", label: "Data da vistoria", type: "date", required: true },
+        { id: "coordenadas", label: "Coordenadas", type: "text", placeholder: "Ex.: -23.3, -51.1" },
+        { id: "empresa", label: "Nome da empresa", type: "text", placeholder: "Nome da empresa" },
+      ],
+    },
+    {
+      id: "regiao",
+      title: "Caracterização da região",
+      description: "Usos e serviços do bairro.",
+      order: 2,
+      fields: [
+        {
+          id: "usos_predominantes",
+          label: "Usos predominantes",
+          type: "checkbox",
+          options: [
+            "Residencial Unifamiliar",
+            "Comercial",
+            "Residencial Multifamiliar",
+            "Industrial",
+          ].map(opt),
+        },
+        {
+          id: "servicos",
+          label: "Serviços públicos e comunitários",
+          type: "checkbox",
+          options: [
+            "Coleta de lixo",
+            "Saúde",
+            "Rede bancária",
+            "Escola",
+            "Comércio",
+            "Lazer",
+            "Transporte coletivo",
+            "Segurança",
+          ].map(opt),
+        },
+      ],
+    },
+    {
+      id: "terreno",
+      title: "Terreno",
+      description: "Características físicas do lote.",
+      order: 3,
+      fields: [
+        {
+          id: "cota",
+          label: "Cota / greide",
+          type: "radio",
+          options: ["No nível", "Abaixo", "Acima"].map(opt),
+        },
+        {
+          id: "inclinacao",
+          label: "Inclinação",
+          type: "radio",
+          options: ["Plano / semi-plano", "Acidentado", "Aclive / declive 10%"].map(opt),
+        },
+        {
+          id: "situacao",
+          label: "Situação",
+          type: "radio",
+          options: ["Meio de quadra", "Esquina", "Quadra inteira", "Outros"].map(opt),
+          allowOtherDetail: true,
+          otherDetailId: "situacao_outros",
+          otherDetailLabel: "Qual?",
+        },
+        {
+          id: "superficie",
+          label: "Superfície",
+          type: "radio",
+          options: ["Seco", "Brejoso", "Alagável", "Outros"].map(opt),
+          allowOtherDetail: true,
+          otherDetailId: "superficie_outros",
+          otherDetailLabel: "Qual?",
+        },
+        {
+          id: "posicao_quadra",
+          label: "Posição na Quadra",
+          type: "radio",
+          options: [
+            "Meio de Quadra",
+            "Esquina",
+            "Isolado",
+            "Encravado",
+            "Encravado - Servidão Passagem",
+          ].map(opt),
+        },
+        {
+          id: "vocacao",
+          label: "Vocação",
+          type: "checkbox",
+          options: ["Residencial", "Comercial", "Industrial", "Institucional"].map(opt),
+        },
+        {
+          id: "fechamento_lote",
+          label: "Fechamento do lote",
+          type: "radio",
+          options: ["Inexistente", "Parcial", "Total"].map(opt),
+        },
+        {
+          id: "vista",
+          label: "Vista Panorâmica",
+          type: "radio",
+          options: ["Sem Influência", "Desfavorável", "Favorável"].map(opt),
+        },
+      ],
+    },
+    {
+      id: "infra",
+      title: "Infraestrutura urbana",
+      description: "Marque tudo que existe.",
+      order: 4,
+      fields: [
+        {
+          id: "infra",
+          label: "Infra-estrutura urbana",
+          type: "checkbox",
+          options: [
+            "Água",
+            "Esgoto ou fossa",
+            "Energia elétrica",
+            "Telefone",
+            "Pavimentação",
+            "Esgoto pluvial",
+            "Gás canalizado",
+            "Iluminação Pública",
+          ].map(opt),
+        },
+      ],
+    },
+    {
+      id: "polos",
+      title: "Polos valorizantes / desvalorizantes",
+      order: 5,
+      fields: [
+        {
+          id: "polos_val",
+          label: "Polos valorizantes",
+          type: "checkbox",
+          options: [
+            "Sem influência",
+            "Parques",
+            "Empreendimentos",
+            "Shoping Center",
+            "Indústria",
+            "Outros",
+          ].map(opt),
+        },
+        {
+          id: "polos_desval",
+          label: "Polos desvalorizantes",
+          type: "checkbox",
+          options: [
+            "Sem influência",
+            "Aterro Sanitário",
+            "Torres / Linhas de recepção e transmissão",
+            "Empreendimentos",
+            "Sub-Habitação",
+            "Indústria",
+            "Estação de Tratamento",
+          ].map(opt),
+        },
+      ],
+    },
+    {
+      id: "informante",
+      title: "Informante",
+      order: 6,
+      fields: [
+        { id: "valor", label: "Valor de Compra e Venda (R$)", type: "currency", placeholder: "R$ 0,00" },
+        { id: "nome_informante", label: "Nome do informante", type: "text", placeholder: "Nome" },
+        { id: "contato", label: "Contato (Telefone ou e-mail)", type: "tel", placeholder: "(43) 99999-9999 ou e-mail" },
+        {
+          id: "classificacao",
+          label: "Classificação",
+          type: "checkbox",
+          options: ["Comprador", "Corretor", "Outros", "Vendedor", "Imobiliária"].map(opt),
+        },
+      ],
+    },
+    {
+      id: "idade",
+      title: "Idade do imóvel",
+      order: 7,
+      fields: [
+        { id: "idade_aparente", label: "Idade aparente do imóvel", type: "text", placeholder: "Ex.: sem construção / 5 anos" },
+      ],
+    },
+    {
+      id: "condominio",
+      title: "Condomínio (complemento)",
+      description: "Preencha se o terreno for em condomínio. Caso contrário, deixe em branco.",
+      order: 8,
+      fields: [
+        {
+          id: "cond_infra",
+          label: "Infraestrutura do condomínio",
+          type: "checkbox",
+          options: ["Pavimentação", "Rede de Esgoto", "Rede de Água"].map(opt),
+        },
+        {
+          id: "cond_equip",
+          label: "Equipamentos",
+          type: "checkbox",
+          options: [
+            "Portaria ou Guarita",
+            "Equipamento de Segurança",
+            "Salão de Festas",
+            "Play Ground",
+            "Sauna / ou Ofurô",
+            "Quadra Poliesportiva",
+            "Quadra de Tênis",
+            "Mini Quadra",
+            "Piscina",
+            "Espaço com Churrasqueira",
+            "Aquecimento Solar",
+            "Gerador",
+            "Campo de futebol / Mini Golfe",
+            "Poço Artesiano",
+          ].map(opt),
+        },
+        {
+          id: "cond_fechamento_contorno",
+          label: "Fechamento de Contorno do Condomínio",
+          type: "checkbox",
+          options: ["Alvenaria", "Alambrado", "Cerca Viva", "Grade Metálica"].map(opt),
+        },
+        {
+          id: "cond_fechamento_lote",
+          label: "Fechamento do Lote dentro do Condomínio",
+          type: "radio",
+          options: ["Total", "Parcial", "Inexistente"].map(opt),
+        },
+        {
+          id: "cond_insercao",
+          label: "Inserção do Condomínio",
+          type: "radio",
+          options: ["Isolado", "Inserido em Conjunto Habitacional", "Inserido em outro Condomínio"].map(opt),
+        },
+        counter("cond_num_unidades", "Número de Unidades do Condomínio"),
+      ],
+    },
+  ],
+};
