@@ -1,17 +1,85 @@
 @import "tailwindcss";
 
-/* Mobile-first base: grandes áreas de toque, fonte legível */
+@theme {
+  --font-sans: "Inter", ui-sans-system, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", sans-serif;
+  --color-ink: #0f1e33;
+  --color-ink-soft: #5b6b82;
+  --color-app: #edf0f4;
+  --color-brand: #1d4ed8;
+  --color-brand-dark: #1e40af;
+}
+
 html {
   -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family: ui-sans-system, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #f1f5f9;
-  color: #0f172a;
+  font-family: var(--font-sans);
+  background: var(--color-app);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Evita zoom duplo em iOS ao focar inputs pequenos */
-input, select, textarea {
+/* Anti-zoom no iOS: inputs nunca abaixo de 16px */
+input,
+select,
+textarea {
   font-size: 16px;
+}
+
+::selection {
+  background: #bfdbfe;
+}
+
+/* Transição de etapa do wizard — sutil, uma vez por navegação */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise-in 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Pulso do ponto "salvo" */
+@keyframes save-ping {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-save-ping {
+  animation: save-ping 600ms ease-out;
+}
+
+/* Números tabulares nos steppers e indicadores */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
