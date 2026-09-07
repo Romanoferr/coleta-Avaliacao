@@ -4,18 +4,31 @@
  * cards de seleção, anel de conclusão. Sem gradientes, sem sombras decorativas.
  */
 
-export function SaveBadge({ state, time }: { state: "saved" | "saving"; time?: string }) {
+export type SaveState = "saved" | "saving" | "pending" | "error";
+
+const SAVE_DOT: Record<SaveState, string> = {
+  saved: "animate-save-ping bg-green-600",
+  saving: "bg-amber-500",
+  pending: "bg-amber-500",
+  error: "bg-red-500",
+};
+
+const SAVE_TEXT: Record<SaveState, string> = {
+  saved: "Salvo",
+  saving: "Salvando…",
+  pending: "Alterações pendentes",
+  error: "Erro ao salvar",
+};
+
+export function SaveBadge({ state, time }: { state: SaveState; time?: string }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-semibold text-slate-600"
       role="status"
       aria-live="polite"
     >
-      <span
-        key={state + (time ?? "")}
-        className={`h-2 w-2 rounded-full ${state === "saved" ? "animate-save-ping bg-green-600" : "bg-amber-500"}`}
-      />
-      {state === "saved" ? `Salvo${time ? ` • ${time}` : ""}` : "Salvando…"}
+      <span key={state + (time ?? "")} className={`h-2 w-2 rounded-full ${SAVE_DOT[state]}`} />
+      {state === "saved" ? `Salvo${time ? ` • ${time}` : ""}` : SAVE_TEXT[state]}
     </span>
   );
 }
@@ -29,7 +42,7 @@ export function AppHeader({
   eyebrow: string;
   title: string;
   onBack?: () => void;
-  save?: { state: "saved" | "saving"; time?: string };
+  save?: { state: SaveState; time?: string };
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur">

@@ -2,7 +2,7 @@
  * Visualizar OS: abas Dados | Ficha | Documentos.
  * A ficha nasce aqui (Criar) ou continua aqui (Abrir). Sem ficha órfã.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppHeader, BottomNav, TypeCard } from "../components/chrome";
 import { ConfirmSheet, DetailRow, EmptyState, StatusChip, formatDateBR } from "../components/os";
@@ -15,6 +15,7 @@ import { PROPERTY_TYPES, getFormDefinition } from "../form-engine/registry";
 import type { PropertyType } from "../form-engine/types";
 import { OsField, osInputCls } from "../components/os";
 import { useStore } from "../state/store";
+import { repoErrorMessage } from "../repositories/errors";
 
 type Tab = "dados" | "ficha" | "docs";
 
@@ -24,27 +25,46 @@ export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const store = useStore();
-  const { getOrder, inspectionOf, documentsOf, changeStatus, reopen, deleteOrder, startInspection, addDocument, deleteDocument } = store;
+  const {
+    getOrder,
+    inspectionOf,
+    docsByOrder,
+    docsStatus,
+    ensureDocuments,
+    changeStatus,
+    reopen,
+    deleteOrder,
+    startInspection,
+    addDocument,
+    deleteDocument,
+  } = store;
   const order = id ? getOrder(id) : undefined;
 
   const [tab, setTab] = useState<Tab>("dados");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
   const [docName, setDocName] = useState("");
   const [docKind, setDocKind] = useState<DocumentKind>("photo");
   const [docError, setDocError] = useState("");
   const [confirmDocId, setConfirmDocId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (tab === "docs" && order && docsStatus[order.id] !== "ready") {
+      void ensureDocuments(order.id);
+    }
+  }, [tab, order, docsStatus, ensureDocuments]);
+
   const inspection = useMemo(() => (order ? inspectionOf(order) : undefined), [order, inspectionOf]);
 
   if (!order || order.deletedAt !== null) {
     return (
       <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow="Ordem de serviço" title="Não encontrada" onBack={() => navigate("/")} />
+        <AppHeader eyebrow="Ordem de serviço" title="Não encontrada" onBack={() => navigate("/dashboard")} />
         <main className="mx-auto max-w-xl px-4 pb-10 pt-6">
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/dashboard")}
             className="h-[60px] w-full rounded-2xl bg-brand text-[17px] font-extrabold text-white"
           >
             Voltar ao início
@@ -57,13 +77,14 @@ export default function OrderDetail() {
   const terminal = isOrderTerminal(order);
   const formTitle = inspection ? (() => { try { return getFormDefinition(inspection.propertyType).title; } catch { return ""; } })() : "";
 
-  const run = (fn: () => void) => {
+  const runAsync = (fn: () => Promise<void>) => {
     setActionError("");
-    try {
-      fn();
-    } catch (e) {
-      setActionError(e instanceof DomainError ? e.message : "Ação não permitida.");
-    }
+    setBusy(true);
+    fn()
+      .catch((e: unknown) => {
+        setActionError(e instanceof DomainError ? e.message : repoErrorMessage(e));
+      })
+      .finally(() => setBusy(false));
   };
 
   const nextStatuses = (["received", "scheduled", "inspected", "drafting", "completed", "cancelled"] as ServiceOrderStatus[]).filter(
@@ -72,17 +93,21 @@ export default function OrderDetail() {
 
   const createFicha = (type: PropertyType) => {
     setActionError("");
-    try {
-      startInspection(order.id, type);
-      navigate(`/os/${order.id}/ficha`);
-    } catch (e) {
-      setActionError(e instanceof DomainError ? e.message : "Não foi possível criar a ficha.");
-    }
+    setBusy(true);
+    startInspection(order.id, type)
+      .then(() => navigate(`/os/${order.id}/ficha`))
+      .catch((e: unknown) => {
+        setActionError(e instanceof DomainError ? e.message : repoErrorMessage(e));
+        setBusy(false);
+      });
   };
+
+  const docs = docsByOrder[order.id] ?? [];
+  const docsState = docsStatus[order.id] ?? "idle";
 
   return (
     <div className="min-h-dvh bg-app text-ink">
-      <AppHeader eyebrow={`OS ${order.number}`} title={order.contractor} onBack={() => navigate("/")} />
+      <AppHeader eyebrow={`OS ${order.number}`} title={order.contractor} onBack={() => navigate("/dashboard")} />
       <main className="mx-auto max-w-xl px-4 pb-10">
         <section className="animate-rise mt-4 rounded-2xl border border-slate-200/80 bg-white p-5">
           <div className="flex items-center justify-between gap-2">
@@ -172,8 +197,8 @@ export default function OrderDetail() {
                     <button
                       key={s}
                       type="button"
-                      disabled={s === "scheduled" && !order.inspectionDate}
-                      onClick={() => run(() => changeStatus(order.id, s))}
+                      disabled={(s === "scheduled" && !order.inspectionDate) || busy}
+                      onClick={() => runAsync(() => changeStatus(order.id, s))}
                       title={s === "scheduled" && !order.inspectionDate ? "Defina a data da vistoria antes de agendar." : undefined}
                       className="min-h-[52px] rounded-xl border-[1.5px] border-slate-200 px-4 py-2.5 text-left text-[15px] font-bold text-slate-700 transition-all active:scale-[0.99] active:border-brand disabled:opacity-50"
                     >
@@ -192,7 +217,8 @@ export default function OrderDetail() {
                       <button
                         key={s}
                         type="button"
-                        onClick={() => run(() => reopen(order.id, s))}
+                        disabled={busy}
+                        onClick={() => runAsync(() => reopen(order.id, s))}
                         className="min-h-[52px] rounded-xl border-[1.5px] border-slate-200 px-3 py-2 text-[14px] font-bold text-slate-700 active:border-brand"
                       >
                         {STATUS_LABEL[s]}
@@ -297,16 +323,22 @@ export default function OrderDetail() {
                   </select>
                   <button
                     type="button"
+                    disabled={busy}
                     onClick={() => {
                       setDocError("");
-                      try {
-                        addDocument(order.id, { name: docName, kind: docKind });
-                        setDocName("");
-                      } catch (e) {
-                        setDocError(e instanceof DomainError ? e.message : "Não foi possível adicionar.");
+                      if (!docName.trim()) {
+                        setDocError("Informe o nome do documento.");
+                        return;
                       }
+                      setBusy(true);
+                      addDocument(order.id, { name: docName, kind: docKind })
+                        .then(() => setDocName(""))
+                        .catch((e: unknown) => {
+                          setDocError(e instanceof DomainError ? e.message : repoErrorMessage(e));
+                        })
+                        .finally(() => setBusy(false));
                     }}
-                    className="h-[56px] shrink-0 rounded-xl bg-brand px-5 text-[15px] font-extrabold text-white active:bg-brand-dark"
+                    className="h-[56px] shrink-0 rounded-xl bg-brand px-5 text-[15px] font-extrabold text-white active:bg-brand-dark disabled:opacity-60"
                   >
                     + Adicionar
                   </button>
@@ -315,10 +347,25 @@ export default function OrderDetail() {
               </div>
             ) : null}
             <div className="mt-3 flex flex-col gap-2">
-              {documentsOf(order.id).length === 0 ? (
+              {docsState === "loading" && docs.length === 0 ? (
+                <div className="animate-pulse rounded-xl border border-slate-200 p-3">
+                  <div className="h-4 w-2/3 rounded bg-slate-100" />
+                </div>
+              ) : docsState === "error" && docs.length === 0 ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-center">
+                  <p className="text-[13.5px] font-bold text-red-700">Não foi possível carregar os documentos.</p>
+                  <button
+                    type="button"
+                    onClick={() => void ensureDocuments(order.id)}
+                    className="mt-1 text-[13px] font-bold text-red-700 underline underline-offset-2"
+                  >
+                    Tentar de novo
+                  </button>
+                </div>
+              ) : docs.length === 0 ? (
                 <p className="py-2 text-center text-[14px] italic text-slate-400">Nenhum documento registrado.</p>
               ) : (
-                documentsOf(order.id).map((d) => (
+                docs.map((d) => (
                   <div key={d.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-lg" aria-hidden>
                       📄
@@ -348,7 +395,7 @@ export default function OrderDetail() {
 
         <div className="mt-4">
           <BottomNav
-            onBack={() => navigate("/")}
+            onBack={() => navigate("/dashboard")}
             onNext={() => {
               setTab("ficha");
               window.scrollTo(0, 0);
@@ -366,8 +413,8 @@ export default function OrderDetail() {
           confirmLabel="Excluir OS"
           onCancel={() => setConfirmDelete(false)}
           onConfirm={() => {
-            deleteOrder(order.id);
-            navigate("/");
+            setConfirmDelete(false);
+            runAsync(() => deleteOrder(order.id).then(() => navigate("/dashboard")));
           }}
         />
       ) : null}
@@ -378,8 +425,9 @@ export default function OrderDetail() {
           confirmLabel="Remover"
           onCancel={() => setConfirmDocId(null)}
           onConfirm={() => {
-            deleteDocument(confirmDocId);
+            const docId = confirmDocId;
             setConfirmDocId(null);
+            if (docId) runAsync(() => deleteDocument(docId, order.id));
           }}
         />
       ) : null}

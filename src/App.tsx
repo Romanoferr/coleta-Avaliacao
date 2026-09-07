@@ -1,28 +1,42 @@
 /**
- * Shell de navegação. HashRouter: funciona em qualquer hospedagem estática
- * sem configuração de servidor; a API é a mesma do BrowserRouter
- * (troca de uma linha quando houver domínio próprio + backend).
- *
- * Rotas (ficha sempre aninhada à OS — sem ficha órfã):
- *   /               Dashboard + lista de OS (criar OS aqui)
- *   /os/new         Nova OS
- *   /os/:id         Detalhe OS (Dados | Ficha | Documentos)
- *   /os/:id/edit    Editar OS
- *   /os/:id/ficha   Ficha de vistoria da OS
+ * Rotas.
+ * Públicas: / (landing) e /login.
+ * Protegidas: /dashboard e /os/* (exigem sessão; modo local dispensa login).
  */
-import { createHashRouter, RouterProvider } from "react-router-dom";
+import { Navigate, createHashRouter, RouterProvider } from "react-router-dom";
+import type { ReactNode } from "react";
 import Dashboard from "./screens/Dashboard";
 import InspectionScreen from "./screens/InspectionScreen";
+import Landing from "./screens/Landing";
+import Login from "./screens/Login";
 import OrderDetail from "./screens/OrderDetail";
 import OrderForm from "./screens/OrderForm";
+import { useAuth } from "./state/auth";
+
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { status } = useAuth();
+  if (status === "loading") {
+    return (
+      <div className="min-h-dvh bg-app text-ink">
+        <main className="mx-auto max-w-xl px-4 pb-10 pt-16 text-center">
+          <p className="text-[14px] font-semibold text-slate-400">Verificando sessão…</p>
+        </main>
+      </div>
+    );
+  }
+  if (status === "local" || status === "authenticated") return <>{children}</>;
+  return <Navigate to="/login" replace />;
+}
 
 const router = createHashRouter([
-  { path: "/", element: <Dashboard /> },
-  { path: "/os/new", element: <OrderForm mode="new" /> },
-  { path: "/os/:id", element: <OrderDetail /> },
-  { path: "/os/:id/edit", element: <OrderForm mode="edit" /> },
-  { path: "/os/:id/ficha", element: <InspectionScreen /> },
-  { path: "*", element: <Dashboard /> },
+  { path: "/", element: <Landing /> },
+  { path: "/login", element: <Login /> },
+  { path: "/dashboard", element: <RequireAuth><Dashboard /></RequireAuth> },
+  { path: "/os/new", element: <RequireAuth><OrderForm mode="new" /></RequireAuth> },
+  { path: "/os/:id", element: <RequireAuth><OrderDetail /></RequireAuth> },
+  { path: "/os/:id/edit", element: <RequireAuth><OrderForm mode="edit" /></RequireAuth> },
+  { path: "/os/:id/ficha", element: <RequireAuth><InspectionScreen /></RequireAuth> },
+  { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
 export default function App() {

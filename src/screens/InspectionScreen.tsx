@@ -1,9 +1,10 @@
 /**
  * Ficha de vistoria aninhada à OS (`/os/:id/ficha`).
- * Reaproveita wizard + revisão + conclusão existentes; o contexto (OS dona,
- * Criar-vs-Abrir, somente-leitura em OS terminal) é novo.
+ * Edição em cópia local + autosave real (debounce + confirmação do backend).
+ * Sem ficha: escolha do tipo (property_type definido ANTES da criação —
+ * melhor UX: o avaliador já sabe o que vai vistoriar ao abrir a OS).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AppHeader,
@@ -20,7 +21,8 @@ import { DomainError } from "../domain/ids";
 import { isOrderTerminal } from "../domain/serviceOrder";
 import type { PropertyType } from "../form-engine/types";
 import { formatAnswer } from "../state/evaluation";
-import { useStore } from "../state/store";
+import { useInspectionEditor, useStore } from "../state/store";
+import { repoErrorMessage } from "../repositories/errors";
 
 type View = "form" | "review" | "done";
 type V = string | number | string[] | undefined;
@@ -30,67 +32,95 @@ const isFilled = (v: V) =>
   v !== null &&
   (typeof v === "number" ? v !== 0 : typeof v === "string" ? v.trim() !== "" : v.length > 0);
 
-function timeOf(iso: string) {
-  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
-
 export default function InspectionScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
   const store = useStore();
-  const order = id ? store.getOrder(id) : undefined;
-  const inspection = order ? store.inspectionOf(order) : undefined;
+  const editor = useInspectionEditor(id);
 
   const [view, setView] = useState<View>("form");
-  const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const [error, setError] = useState("");
-
-  const form: FormDefinition | null = useMemo(() => {
-    if (!inspection) return null;
-    try {
-      return getFormDefinition(inspection.propertyType);
-    } catch {
-      return null;
-    }
-  }, [inspection]);
-
-  const updatedAt = inspection?.updatedAt;
-  useEffect(() => {
-    if (!inspection) return;
-    setSaveState("saving");
-    const t = setTimeout(() => setSaveState("saved"), 900);
-    return () => clearTimeout(t);
-  }, [updatedAt, inspection]);
+  const [finishing, setFinishing] = useState(false);
 
   const scrollTop = () => window.scrollTo(0, 0);
   const backToOrder = () => navigate(`/os/${id}`);
 
+  const order = editor.order;
+  const draft = editor.draft;
+
+  const form: FormDefinition | null = useMemo(() => {
+    if (!draft) return null;
+    try {
+      return getFormDefinition(draft.propertyType);
+    } catch {
+      return null;
+    }
+  }, [draft]);
+
   const completion = useMemo(() => {
-    if (!form || !inspection) return { filled: 0, total: 0 };
+    if (!form || !draft) return { filled: 0, total: 0 };
     let filled = 0;
     let count = 0;
     for (const s of form.sections) {
       for (const f of s.fields) {
         if (f.type === "subtitle") continue;
         count += 1;
-        if (isFilled(inspection.data[s.id]?.[f.id] as V)) filled += 1;
+        if (isFilled(draft.data[s.id]?.[f.id] as V)) filled += 1;
       }
     }
     return { filled, total: count };
-  }, [form, inspection]);
+  }, [form, draft]);
 
-  if (!order || order.deletedAt !== null) {
+  // ---------- carregamento / erro ----------
+  if (editor.phase === "loading") {
     return (
       <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow="Ficha de vistoria" title="OS não encontrada" onBack={() => navigate("/")} />
+        <AppHeader eyebrow="Ficha de vistoria" title="Carregando…" onBack={backToOrder} />
+        <main className="mx-auto max-w-xl px-4 pb-10 pt-6">
+          <div className="animate-pulse rounded-2xl border border-slate-200/80 bg-white p-5">
+            <div className="h-5 w-2/3 rounded bg-slate-100" />
+            <div className="mt-3 h-4 w-full rounded bg-slate-100" />
+            <div className="mt-2 h-4 w-5/6 rounded bg-slate-100" />
+            <div className="mt-2 h-4 w-4/6 rounded bg-slate-100" />
+          </div>
+          <p className="mt-3 text-center text-[13px] font-semibold text-slate-400">Carregando ficha…</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (editor.phase === "error" || !order) {
+    return (
+      <div className="min-h-dvh bg-app text-ink">
+        <AppHeader eyebrow="Ficha de vistoria" title="Não foi possível carregar" onBack={backToOrder} />
+        <main className="mx-auto max-w-xl px-4 pb-10 pt-6">
+          <p className="rounded-2xl border-[1.5px] border-red-200 bg-red-50 p-4 text-[14px] font-bold text-red-700">
+            {editor.error ?? "OS não encontrada."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void editor.reload()}
+            className="mt-3 h-[60px] w-full rounded-2xl bg-brand text-[17px] font-extrabold text-white"
+          >
+            Tentar de novo
+          </button>
+        </main>
+      </div>
+    );
+  }
+
+  if (order.deletedAt !== null) {
+    return (
+      <div className="min-h-dvh bg-app text-ink">
+        <AppHeader eyebrow="Ficha de vistoria" title="OS excluída" onBack={() => navigate("/dashboard")} />
       </div>
     );
   }
 
   const readOnly = isOrderTerminal(order);
 
-  // ---------- Sem ficha: escolher tipo (equivale ao "Criar") ----------
-  if (!inspection) {
+  // ---------- Sem ficha: escolher tipo = Criar ----------
+  if (!draft) {
     return (
       <div className="min-h-dvh bg-app text-ink">
         <AppHeader eyebrow={`OS ${order.number}`} title="Criar ficha de vistoria" onBack={backToOrder} />
@@ -116,13 +146,16 @@ export default function InspectionScreen() {
                   disabled={!t.available}
                   onSelect={() => {
                     setError("");
-                    try {
-                      store.startInspection(order.id, t.type as PropertyType);
-                      setView("form");
-                      scrollTop();
-                    } catch (e) {
-                      setError(e instanceof DomainError ? e.message : "Não foi possível criar a ficha.");
-                    }
+                    store
+                      .startInspection(order.id, t.type as PropertyType)
+                      .then(() => editor.reload())
+                      .then(() => {
+                        setView("form");
+                        scrollTop();
+                      })
+                      .catch((e: unknown) => {
+                        setError(e instanceof DomainError ? e.message : repoErrorMessage(e));
+                      });
                   }}
                 />
               ))}
@@ -141,7 +174,7 @@ export default function InspectionScreen() {
     );
   }
 
-  const sectionIndex = inspection.currentSectionIndex ?? 0;
+  const sectionIndex = draft.currentSectionIndex ?? 0;
   const section = form.sections[sectionIndex];
   const total = form.sections.length;
 
@@ -155,8 +188,23 @@ export default function InspectionScreen() {
 
   const handleChange = (sectionId: string, fieldId: string, v: string | number | string[]) => {
     if (readOnly) return;
-    store.setAnswer(inspection.id, sectionId, fieldId, v);
+    editor.setAnswer(sectionId, fieldId, v);
   };
+
+  const saveBanner =
+    editor.saveState === "error" ? (
+      <button
+        type="button"
+        onClick={() => void editor.flush().catch(() => undefined)}
+        className="mt-3 w-full rounded-xl border-[1.5px] border-red-200 bg-red-50 p-3 text-center text-[13.5px] font-bold text-red-700"
+      >
+        ⚠ {editor.saveError ?? "Erro ao salvar."} Toque para tentar de novo.
+      </button>
+    ) : editor.offlineNote ? (
+      <p className="mt-3 rounded-xl bg-amber-50 p-3 text-center text-[13.5px] font-bold text-amber-800">
+        Rascunho local restaurado — será sincronizado ao salvar.
+      </p>
+    ) : null;
 
   // ================= REVIEW =================
   if (view === "review") {
@@ -167,14 +215,15 @@ export default function InspectionScreen() {
           eyebrow={`OS ${order.number} · ${form.title} · revisão`}
           title="Revisão da ficha"
           onBack={() => {
-            store.goSection(inspection.id, total - 1);
+            editor.goSection(total - 1);
             setView("form");
             scrollTop();
           }}
-          save={{ state: saveState, time: timeOf(inspection.updatedAt) }}
+          save={{ state: editor.saveState, time: editor.savedAtLabel ?? undefined }}
         />
         <ProgressHairline ratio={1} />
         <main className="mx-auto max-w-xl px-4 pb-10">
+          {saveBanner}
           <section className="animate-rise mt-4 rounded-2xl border border-slate-200/80 bg-white p-5">
             <div className="flex items-center gap-4">
               <CompletionRing ratio={ratio} />
@@ -192,7 +241,7 @@ export default function InspectionScreen() {
 
           <div className="mt-3 flex flex-col gap-2.5">
             {form.sections.map((s, i) => {
-              const answers = inspection.data[s.id] ?? {};
+              const answers = draft.data[s.id] ?? {};
               const rows = s.fields.filter((f) => {
                 if (f.type === "subtitle") return false;
                 if (/_det$/.test(f.id)) {
@@ -216,7 +265,7 @@ export default function InspectionScreen() {
                     {!readOnly ? (
                       <button
                         onClick={() => {
-                          store.goSection(inspection.id, i);
+                          editor.goSection(i);
                           setView("form");
                           scrollTop();
                         }}
@@ -256,22 +305,39 @@ export default function InspectionScreen() {
           <div className="mt-2">
             <BottomNav
               backLabel="Voltar"
-              nextLabel={readOnly ? "Voltar à OS" : "Finalizar ficha"}
+              nextLabel={readOnly ? "Voltar à OS" : finishing ? "Finalizando…" : "Finalizar ficha"}
               nextHint={`OS ${order.number} · ${form.title}`}
               onBack={() => {
-                store.goSection(inspection.id, total - 1);
+                editor.goSection(total - 1);
                 setView("form");
                 scrollTop();
               }}
               onNext={() => {
-                if (readOnly) backToOrder();
-                else {
-                  store.finishInspection(inspection.id);
-                  setView("done");
+                if (readOnly) {
+                  backToOrder();
+                  return;
                 }
-                scrollTop();
+                if (editor.saveState === "error") return;
+                setFinishing(true);
+                setError("");
+                editor
+                  .finish()
+                  .then(() => {
+                    setView("done");
+                    scrollTop();
+                  })
+                  .catch((e: unknown) => {
+                    setError(e instanceof DomainError ? e.message : repoErrorMessage(e));
+                    scrollTop();
+                  })
+                  .finally(() => setFinishing(false));
               }}
             />
+            {error ? (
+              <p className="mt-2 rounded-xl border-[1.5px] border-red-200 bg-red-50 p-3 text-center text-[13.5px] font-bold text-red-700">
+                {error}
+              </p>
+            ) : null}
           </div>
         </main>
       </div>
@@ -292,7 +358,7 @@ export default function InspectionScreen() {
             </span>
             <h2 className="mt-3 text-[22px] font-extrabold tracking-tight">Dados coletados</h2>
             <p className="mx-auto mt-1 max-w-[30ch] text-[14.5px] leading-snug text-slate-500">
-              A ficha foi vinculada à OS {order.number} e está salva neste aparelho.
+              A ficha foi vinculada à OS {order.number} e salva{store.backend === "supabase" ? " na nuvem" : " neste aparelho"}.
             </p>
             <div className="tnum mt-4 flex justify-center gap-2 text-[13px] font-bold">
               <span className="rounded-full bg-slate-100 px-3.5 py-1.5 text-slate-600">OS {order.number}</span>
@@ -315,7 +381,7 @@ export default function InspectionScreen() {
   const isLast = sectionIndex === total - 1;
   const nextSection = !isLast ? form.sections[sectionIndex + 1] : null;
   const sectionFields = section.fields.filter((f) => f.type !== "subtitle");
-  const answeredCount = sectionFields.filter((f) => isFilled(inspection.data[section.id]?.[f.id] as V)).length;
+  const answeredCount = sectionFields.filter((f) => isFilled(draft.data[section.id]?.[f.id] as V)).length;
 
   return (
     <div className="min-h-dvh bg-app text-ink">
@@ -324,10 +390,10 @@ export default function InspectionScreen() {
         title={section.title}
         onBack={() => {
           if (sectionIndex === 0) backToOrder();
-          else store.goSection(inspection.id, sectionIndex - 1);
+          else editor.goSection(sectionIndex - 1);
           scrollTop();
         }}
-        save={{ state: saveState, time: timeOf(inspection.updatedAt) }}
+        save={{ state: editor.saveState, time: editor.savedAtLabel ?? undefined }}
       />
       <ProgressHairline ratio={(sectionIndex + 1) / total} />
       <main className="mx-auto max-w-xl px-4 pb-10">
@@ -336,6 +402,7 @@ export default function InspectionScreen() {
             OS {order.status === "completed" ? "concluída" : "cancelada"} — ficha somente leitura.
           </p>
         ) : null}
+        {saveBanner}
         <div key={section.id} className="animate-rise">
           <div className="pt-4">
             <SectionHeader
@@ -352,9 +419,9 @@ export default function InspectionScreen() {
               <FieldRenderer
                 key={f.id}
                 field={f}
-                value={inspection.data[section.id]?.[f.id] as V}
+                value={draft.data[section.id]?.[f.id] as V}
                 otherDetailValue={
-                  f.otherDetailId ? (inspection.data[section.id]?.[f.otherDetailId] as V) : undefined
+                  f.otherDetailId ? (draft.data[section.id]?.[f.otherDetailId] as V) : undefined
                 }
                 onChange={(fieldId, v) => handleChange(section.id, fieldId, v)}
               />
@@ -365,12 +432,12 @@ export default function InspectionScreen() {
           <BottomNav
             onBack={() => {
               if (sectionIndex === 0) backToOrder();
-              else store.goSection(inspection.id, sectionIndex - 1);
+              else editor.goSection(sectionIndex - 1);
               scrollTop();
             }}
             onNext={() => {
               if (isLast) setView("review");
-              else store.goSection(inspection.id, sectionIndex + 1);
+              else editor.goSection(sectionIndex + 1);
               scrollTop();
             }}
             backLabel={sectionIndex === 0 ? "OS" : "Voltar"}

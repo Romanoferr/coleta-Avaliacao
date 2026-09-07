@@ -12,6 +12,7 @@ import { STATUS_LABEL } from "../domain/serviceOrder";
 import { dashboardCounts, filterOrders, sortOrders } from "../application/selectors";
 import type { OrderSort, QuickFilter, StatusFilter } from "../application/selectors";
 import { useStore } from "../state/store";
+import { useAuth } from "../state/auth";
 
 const STATUS_CHIPS: StatusFilter[] = ["all", "received", "scheduled", "inspected", "drafting", "completed", "cancelled"];
 
@@ -20,7 +21,8 @@ function chipLabel(s: StatusFilter): string {
 }
 
 export default function Dashboard() {
-  const { orders } = useStore();
+  const { orders, ready, loadError, stale, reload, backend, cloudMigration, migrateLocalToCloud } = useStore();
+  const { status: authStatus, user, signOut } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -51,6 +53,84 @@ export default function Dashboard() {
     <div className="min-h-dvh bg-app text-ink">
       <AppHeader eyebrow="Vistoria técnica" title="Ordens de serviço" />
       <main className="mx-auto max-w-xl px-4 pb-10">
+        {authStatus === "authenticated" && user ? (
+          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white px-4 py-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[15px] font-extrabold text-brand" aria-hidden>
+              {(user.email ?? "?").slice(0, 1).toUpperCase()}
+            </span>
+            <p className="min-w-0 flex-1 truncate text-[13.5px] font-bold">{user.email}</p>
+            <button
+              type="button"
+              onClick={() => {
+                void signOut().then(() => navigate("/login", { replace: true }));
+              }}
+              className="h-11 shrink-0 rounded-xl border-[1.5px] border-slate-200 px-4 text-[14px] font-bold text-slate-600 active:bg-slate-50"
+            >
+              Sair
+            </button>
+          </div>
+        ) : null}
+        {stale ? (
+          <p className="mt-4 rounded-2xl border-[1.5px] border-amber-300 bg-amber-50 p-4 text-[13.5px] font-bold text-amber-900">
+            Sem conexão — mostrando a última cópia salva. Edições desativadas até reconectar.{" "}
+            <button type="button" onClick={() => void reload()} className="underline underline-offset-2">
+              Tentar de novo
+            </button>
+          </p>
+        ) : null}
+        {cloudMigration.needed ? (
+          <div className="mt-4 rounded-2xl border-[1.5px] border-brand bg-blue-50 p-4">
+            <p className="text-[15px] font-extrabold text-blue-950">Dados locais encontrados</p>
+            <p className="mt-0.5 text-[13.5px] leading-snug text-blue-900">
+              Há OS neste aparelho de antes da nuvem. Envie-as para o Supabase (uma vez; os dados locais são mantidos como backup).
+            </p>
+            {cloudMigration.result ? (
+              <p className="tnum mt-1 text-[13px] font-semibold text-blue-900">
+                Enviadas: {cloudMigration.result.orders} OS · {cloudMigration.result.inspections} fichas ·{" "}
+                {cloudMigration.result.documents} documentos.
+                {cloudMigration.result.errors.length > 0 ? ` ${cloudMigration.result.errors.length} com erro.` : ""}
+              </p>
+            ) : null}
+            {cloudMigration.result?.errors.map((msg, i) => (
+              <p key={i} className="mt-1 text-[12.5px] font-semibold text-red-700">
+                {msg}
+              </p>
+            ))}
+            <button
+              type="button"
+              disabled={cloudMigration.running}
+              onClick={() => void migrateLocalToCloud()}
+              className="mt-2 h-[52px] w-full rounded-xl bg-brand text-[15px] font-extrabold text-white disabled:opacity-60"
+            >
+              {cloudMigration.running ? "Enviando…" : "Enviar para a nuvem"}
+            </button>
+          </div>
+        ) : null}
+        {!ready ? (
+          <section className="mt-4 flex flex-col gap-2.5" aria-label="Carregando">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="animate-pulse rounded-2xl border border-slate-200/80 bg-white p-4">
+                <div className="h-5 w-1/3 rounded bg-slate-100" />
+                <div className="mt-2 h-4 w-2/3 rounded bg-slate-100" />
+              </div>
+            ))}
+            <p className="text-center text-[13px] font-semibold text-slate-400">Carregando ordens de serviço…</p>
+          </section>
+        ) : loadError ? (
+          <section className="mt-4">
+            <p className="rounded-2xl border-[1.5px] border-red-200 bg-red-50 p-4 text-[14px] font-bold text-red-700">
+              {loadError}
+            </p>
+            <button
+              type="button"
+              onClick={() => void reload()}
+              className="mt-3 h-[60px] w-full rounded-2xl bg-brand text-[17px] font-extrabold text-white"
+            >
+              Tentar de novo
+            </button>
+          </section>
+        ) : (
+          <>
         <section className="animate-rise pt-5">
           <div className="rounded-3xl bg-ink p-6 text-white">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
@@ -167,8 +247,10 @@ export default function Dashboard() {
           )}
         </section>
         <p className="mt-3 text-center text-[12px] text-slate-400">
-          Os dados ficam salvos neste aparelho durante o trabalho.
+          {backend === "supabase" ? "Salvo na nuvem (Supabase)." : "Salvo neste aparelho (modo local)."}
         </p>
+          </>
+        )}
       </main>
     </div>
   );

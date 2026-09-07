@@ -148,7 +148,7 @@ export function createServiceOrder(
   const errors = validateOrderInput(input, existing);
   if (Object.keys(errors).length > 0) throw new DomainError("INVALID_ORDER", "Dados da OS inválidos.", errors);
   return {
-    id: newId("os"),
+    id: newId(),
     number: normalizeOrderNumber(input.number),
     contractor: input.contractor.trim(),
     receivedAt: input.receivedAt,

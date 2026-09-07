@@ -10,6 +10,7 @@ import { OsField, osInputCls } from "../components/os";
 import { DomainError, todayLocalIso } from "../domain/ids";
 import type { CreateOrderInput } from "../domain/serviceOrder";
 import { addressFromForm, useStore } from "../state/store";
+import { repoErrorMessage } from "../repositories/errors";
 
 type StrMap = Record<string, string>;
 
@@ -65,15 +66,16 @@ export default function OrderForm({ mode }: { mode: "new" | "edit" }) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [globalError, setGlobalError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   if (mode === "edit" && !existing) {
     return (
       <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow="Ordem de serviço" title="Não encontrada" onBack={() => navigate("/")} />
+        <AppHeader eyebrow="Ordem de serviço" title="Não encontrada" onBack={() => navigate("/dashboard")} />
         <main className="mx-auto max-w-xl px-4 pb-10 pt-6">
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/dashboard")}
             className="h-[60px] w-full rounded-2xl bg-brand text-[17px] font-extrabold text-white"
           >
             Voltar ao início
@@ -109,22 +111,25 @@ export default function OrderForm({ mode }: { mode: "new" | "edit" }) {
   });
 
   const save = () => {
+    if (saving) return;
     setErrors({});
     setGlobalError("");
-    try {
-      if (mode === "new") {
-        const created = createOrder(toInput());
-        navigate(`/os/${created.id}`, { replace: true });
-      } else if (existing) {
-        updateOrder(existing.id, toInput());
-        navigate(`/os/${existing.id}`);
-      }
-    } catch (e) {
-      if (e instanceof DomainError && e.fields) setErrors(e.fields);
-      else if (e instanceof DomainError) setGlobalError(e.message);
-      else setGlobalError("Não foi possível salvar. Tente novamente.");
-      window.scrollTo(0, 0);
-    }
+    setSaving(true);
+    const done = (fn: Promise<unknown>) =>
+      fn
+        .then((created) => {
+          if (mode === "new") navigate(`/os/${(created as { id: string }).id}`, { replace: true });
+          else if (existing) navigate(`/os/${existing.id}`);
+        })
+        .catch((e: unknown) => {
+          if (e instanceof DomainError && e.fields) setErrors(e.fields);
+          else if (e instanceof DomainError) setGlobalError(e.message);
+          else setGlobalError(repoErrorMessage(e));
+          window.scrollTo(0, 0);
+        })
+        .finally(() => setSaving(false));
+    if (mode === "new") done(createOrder(toInput()));
+    else if (existing) done(updateOrder(existing.id, toInput()).then(() => ({ id: existing.id })));
   };
 
   return (
@@ -230,7 +235,7 @@ export default function OrderForm({ mode }: { mode: "new" | "edit" }) {
             onBack={() => navigate(mode === "new" ? "/" : `/os/${existing?.id ?? ""}`)}
             onNext={save}
             backLabel="Cancelar"
-            nextLabel={mode === "new" ? "Criar OS" : "Salvar alterações"}
+            nextLabel={saving ? "Salvando…" : mode === "new" ? "Criar OS" : "Salvar alterações"}
             nextHint={mode === "new" ? "Depois: criar a ficha dentro da OS" : `OS ${existing?.number ?? ""}`}
           />
         </div>

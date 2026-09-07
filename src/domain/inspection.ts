@@ -36,7 +36,7 @@ export function createInspection(
 ): Inspection {
   if (!orderId) throw new DomainError("NO_ORDER", "Ficha só pode ser criada a partir de uma OS.");
   return {
-    id: newId("insp"),
+    id: newId(),
     orderId,
     propertyType,
     status: "draft",

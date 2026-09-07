@@ -1,0 +1,22 @@
+# Supabase CLI — configuração mínima do projeto.
+# Uso: `supabase link --project-ref <ref>` (uma vez) e depois
+# `supabase db push` / `supabase db reset`. Detalhes em docs/SUPABASE.md.
+# Nenhum secret é guardado aqui.
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true

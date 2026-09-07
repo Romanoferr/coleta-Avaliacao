@@ -1,11 +1,16 @@
 /** Identidades e relógios do domínio. Puro, sem dependência de UI ou storage. */
 
-export function newId(prefix: string): string {
-  const rand =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `f${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;
-  return `${prefix}_${rand}`;
+/**
+ * Identidade técnica: UUID v4 puro (compatível com `uuid` do PostgreSQL).
+ * O id nunca é exibido ao usuário — o número comercial da OS vive em `number`.
+ */
+export function newId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  // Fallback (navegadores muito antigos): UUID v4 pseudo-aleatório.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
 
 export function nowIso(): string {
