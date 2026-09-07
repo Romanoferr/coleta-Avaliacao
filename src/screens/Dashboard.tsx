@@ -2,7 +2,7 @@
  * Central de trabalho: o que fazer hoje, acesso rápido a OS e rota,
  * lista com busca, filtros e ordenação. Desktop usa tabela, mobile usa cards.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell, ErrorBlock, LoadingBlock } from "../components/chrome";
 import { EmptyState, OrderCard, STATUS_EMOJI, formatDateBR } from "../components/os";
@@ -20,6 +20,50 @@ function chipLabel(s: StatusFilter): string {
   return `${STATUS_EMOJI[s as ServiceOrderStatus]} ${STATUS_LABEL[s]}`;
 }
 
+type DateField = "received" | "inspection" | "due";
+type DateMode = "after" | "until" | "between";
+
+interface DateFilterRow {
+  id: number;
+  field: DateField;
+  mode: DateMode;
+  from: string;
+  to: string;
+}
+
+const DATE_FIELD_LABEL: Record<DateField, string> = {
+  received: "Recebimento",
+  inspection: "Vistoria",
+  due: "Conclusão",
+};
+
+const DATE_MODE_LABEL: Record<DateMode, string> = {
+  after: "Após",
+  until: "Até",
+  between: "Entre",
+};
+
+const SORT_LABEL: Record<OrderSort, string> = {
+  agenda: "Agenda: data da vistoria",
+  recent: "Recentes: atualizadas por último",
+  received: "Recebimento: mais recentes primeiro",
+  due: "Conclusão: prazo mais próximo",
+};
+
+/** Texto legível do filtro para o resumo (ex.: "Vistoria entre 01/09/2026 e 10/09/2026"). */
+function describeDateRow(r: DateFilterRow): string | null {
+  const field = DATE_FIELD_LABEL[r.field];
+  if (r.mode === "after" && r.from) return `${field} após ${formatDateBR(r.from)}`;
+  if (r.mode === "until" && r.to) return `${field} até ${formatDateBR(r.to)}`;
+  if (r.mode === "between" && r.from && r.to) {
+    const [a, b] = r.from <= r.to ? [r.from, r.to] : [r.to, r.from];
+    return `${field} entre ${formatDateBR(a)} e ${formatDateBR(b)}`;
+  }
+  if (r.mode === "between" && r.from) return `${field} a partir de ${formatDateBR(r.from)}`;
+  if (r.mode === "between" && r.to) return `${field} até ${formatDateBR(r.to)}`;
+  return null;
+}
+
 export default function Dashboard() {
   const { orders, ready, loadError, stale, reload, backend, cloudMigration, migrateLocalToCloud } = useStore();
   const navigate = useNavigate();
@@ -28,22 +72,44 @@ export default function Dashboard() {
   const [quick, setQuick] = useState<QuickFilter>("none");
   const [sort, setSort] = useState<OrderSort>("agenda");
   const [showDates, setShowDates] = useState(false);
-  const [receivedFrom, setReceivedFrom] = useState("");
-  const [receivedTo, setReceivedTo] = useState("");
-  const [inspectionFrom, setInspectionFrom] = useState("");
-  const [inspectionTo, setInspectionTo] = useState("");
-  const [dueUntil, setDueUntil] = useState("");
+  const [dateRows, setDateRows] = useState<DateFilterRow[]>([]);
+  const rowSeq = useRef(1);
 
-  const dateFilters = useMemo(
-    () => ({
-      ...(receivedFrom ? { receivedFrom } : {}),
-      ...(receivedTo ? { receivedTo } : {}),
-      ...(inspectionFrom ? { inspectionFrom } : {}),
-      ...(inspectionTo ? { inspectionTo } : {}),
-      ...(dueUntil ? { dueUntil } : {}),
-    }),
-    [receivedFrom, receivedTo, inspectionFrom, inspectionTo, dueUntil]
-  );
+  /** Junta as linhas em limites por campo (AND entre linhas: maior início, menor fim). */
+  const dateFilters = useMemo(() => {
+    const froms: Record<DateField, string[]> = { received: [], inspection: [], due: [] };
+    const tos: Record<DateField, string[]> = { received: [], inspection: [], due: [] };
+    for (const r of dateRows) {
+      let from = r.from;
+      let to = r.to;
+      if (r.mode === "between" && from && to && from > to) [from, to] = [to, from];
+      if ((r.mode === "after" || r.mode === "between") && from) froms[r.field].push(from);
+      if ((r.mode === "until" || r.mode === "between") && to) tos[r.field].push(to);
+    }
+    const max = (xs: string[]) => (xs.length ? xs.reduce((a, b) => (a > b ? a : b)) : undefined);
+    const min = (xs: string[]) => (xs.length ? xs.reduce((a, b) => (a < b ? a : b)) : undefined);
+    const out: {
+      receivedFrom?: string;
+      receivedTo?: string;
+      inspectionFrom?: string;
+      inspectionTo?: string;
+      dueFrom?: string;
+      dueUntil?: string;
+    } = {};
+    const rf = max(froms.received);
+    const rt = min(tos.received);
+    const inf = max(froms.inspection);
+    const int = min(tos.inspection);
+    const df = max(froms.due);
+    const dt = min(tos.due);
+    if (rf) out.receivedFrom = rf;
+    if (rt) out.receivedTo = rt;
+    if (inf) out.inspectionFrom = inf;
+    if (int) out.inspectionTo = int;
+    if (df) out.dueFrom = df;
+    if (dt) out.dueUntil = dt;
+    return out;
+  }, [dateRows]);
   const dateFilterCount = Object.keys(dateFilters).length;
 
   const counts = useMemo(() => dashboardCounts(orders), [orders]);
@@ -55,11 +121,20 @@ export default function Dashboard() {
     search.trim() !== "" || status !== "all" || quick !== "none" || dateFilterCount > 0;
 
   function clearDateFilters() {
-    setReceivedFrom("");
-    setReceivedTo("");
-    setInspectionFrom("");
-    setInspectionTo("");
-    setDueUntil("");
+    setDateRows([]);
+  }
+
+  function addDateRow() {
+    const id = rowSeq.current++;
+    setDateRows((prev) => [...prev, { id, field: "inspection", mode: "between", from: "", to: "" }]);
+  }
+
+  function updateDateRow(id: number, patch: Partial<DateFilterRow>) {
+    setDateRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  function removeDateRow(id: number) {
+    setDateRows((prev) => prev.filter((r) => r.id !== id));
   }
 
   const pickQuick = (q: QuickFilter) => {
@@ -184,8 +259,8 @@ export default function Dashboard() {
           </section>
 
           <section className="app-toolbar" aria-label="Buscar e filtrar" style={{ marginTop: 12 }}>
-            <div className="app-toolbar-row app-toolbar-search">
-              <div className="app-toolbar-search" style={{ flex: 1 }}>
+            <div className="app-toolbar-topline">
+              <div className="app-toolbar-search">
                 <span className="app-toolbar-search-icon" aria-hidden>
                   ⌕
                 </span>
@@ -194,19 +269,29 @@ export default function Dashboard() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar nº, contratante, endereço…"
-                  aria-label="Buscar ordens de serviço"
-                  className="app-input"
+                  aria-label="Buscar ordens de serviço por número, contratante ou endereço"
+                  className="app-input app-input--compact"
                 />
               </div>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as OrderSort)}
+                className="app-input app-input--compact app-sort-select"
+                aria-label={`Ordenar por. Critério atual: ${SORT_LABEL[sort]}`}
+              >
+                {(Object.keys(SORT_LABEL) as OrderSort[]).map((s) => (
+                  <option key={s} value={s}>
+                    {SORT_LABEL[s]}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                onClick={() => setSort((s) => (s === "agenda" ? "recent" : "agenda"))}
-                aria-label={sort === "agenda" ? "Ordenando por agenda. Trocar para recentes." : "Ordenando por recentes. Trocar para agenda."}
-                title={sort === "agenda" ? "Ordem: agenda" : "Ordem: recentes"}
-                className="app-btn app-btn--secondary app-btn--sm"
-                style={{ minHeight: 52 }}
+                onClick={() => setShowDates((v) => !v)}
+                aria-expanded={showDates}
+                className={`app-chip app-dates-toggle${dateFilterCount > 0 ? " app-chip--active" : ""}`}
               >
-                ⇅
+                <span className="tnum">📅 Datas{dateFilterCount > 0 ? ` (${dateFilterCount})` : ""}</span>
               </button>
             </div>
             <div className="app-chiprail" role="group" aria-label="Filtrar por status">
@@ -228,79 +313,112 @@ export default function Dashboard() {
                 );
               })}
             </div>
-            <button
-              type="button"
-              onClick={() => setShowDates((v) => !v)}
-              aria-expanded={showDates}
-              className={`app-chip${dateFilterCount > 0 ? " app-chip--active" : ""}`}
-            >
-              <span className="tnum">📅 Datas{dateFilterCount > 0 ? ` (${dateFilterCount})` : ""}</span>
-            </button>
             {showDates && (
-              <div className="app-card" style={{ padding: 14, flexBasis: "100%" }}>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                    gap: 10,
-                  }}
+              <div className="app-card app-datepanel">
+                <p className="app-section-label" style={{ marginBottom: 4 }}>
+                  Filtrar por datas
+                </p>
+                <p style={{ margin: "0 0 12px", fontSize: 13, color: "#5b6b82" }}>
+                  Escolha a data, o período e adicione quantos filtros precisar. Vale a combinação de todos.
+                </p>
+                {dateRows.length > 0 && (
+                  <ul className="app-daterows" aria-label="Filtros de data ativos">
+                    {dateRows.map((r, idx) => {
+                      const summary = describeDateRow(r);
+                      return (
+                        <li key={r.id} className="app-daterow">
+                          <div className="app-daterow-head">
+                            <span className="tnum app-daterow-title">Filtro {idx + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeDateRow(r.id)}
+                              className="app-daterow-remove"
+                              aria-label={`Remover filtro de data ${idx + 1}`}
+                            >
+                              <span aria-hidden>×</span> Remover
+                            </button>
+                          </div>
+                          <div className="app-daterow-grid">
+                            <label className="app-daterow-field">
+                              <span>Data de</span>
+                              <select
+                                value={r.field}
+                                onChange={(e) =>
+                                  updateDateRow(r.id, { field: e.target.value as DateField })
+                                }
+                                className="app-input app-input--compact tnum"
+                                aria-label={`Data do filtro ${idx + 1}`}
+                              >
+                                {(Object.keys(DATE_FIELD_LABEL) as DateField[]).map((f) => (
+                                  <option key={f} value={f}>
+                                    {DATE_FIELD_LABEL[f]}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="app-daterow-field">
+                              <span>Período</span>
+                              <select
+                                value={r.mode}
+                                onChange={(e) =>
+                                  updateDateRow(r.id, { mode: e.target.value as DateMode })
+                                }
+                                className="app-input app-input--compact tnum"
+                                aria-label={`Período do filtro ${idx + 1}`}
+                              >
+                                {(Object.keys(DATE_MODE_LABEL) as DateMode[]).map((m) => (
+                                  <option key={m} value={m}>
+                                    {DATE_MODE_LABEL[m]}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          <div className="app-daterow-dates">
+                            {(r.mode === "after" || r.mode === "between") && (
+                              <label className="app-daterow-field">
+                                <span>{r.mode === "between" ? "De" : "A partir de"}</span>
+                                <input
+                                  type="date"
+                                  value={r.from}
+                                  onChange={(e) => updateDateRow(r.id, { from: e.target.value })}
+                                  className="app-input app-input--compact tnum"
+                                  aria-label={`Data inicial do filtro ${idx + 1}`}
+                                />
+                              </label>
+                            )}
+                            {(r.mode === "until" || r.mode === "between") && (
+                              <label className="app-daterow-field">
+                                <span>Até</span>
+                                <input
+                                  type="date"
+                                  value={r.to}
+                                  onChange={(e) => updateDateRow(r.id, { to: e.target.value })}
+                                  className="app-input app-input--compact tnum"
+                                  aria-label={`Data final do filtro ${idx + 1}`}
+                                />
+                              </label>
+                            )}
+                          </div>
+                          {summary ? (
+                            <p className="tnum app-daterow-summary">{summary}</p>
+                          ) : (
+                            <p className="app-daterow-summary app-daterow-summary--empty">
+                              Preencha a data para ativar este filtro.
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <button
+                  type="button"
+                  onClick={addDateRow}
+                  className="app-datepanel-add"
                 >
-                  <label style={{ display: "block" }}>
-                    <span className="app-field-label" style={{ fontSize: 13 }}>Recebida de</span>
-                    <input
-                      type="date"
-                      value={receivedFrom}
-                      onChange={(e) => setReceivedFrom(e.target.value)}
-                      className="app-input tnum"
-                      aria-label="Recebida de"
-                      style={{ marginTop: 4 }}
-                    />
-                  </label>
-                  <label style={{ display: "block" }}>
-                    <span className="app-field-label" style={{ fontSize: 13 }}>Recebida até</span>
-                    <input
-                      type="date"
-                      value={receivedTo}
-                      onChange={(e) => setReceivedTo(e.target.value)}
-                      className="app-input tnum"
-                      aria-label="Recebida até"
-                      style={{ marginTop: 4 }}
-                    />
-                  </label>
-                  <label style={{ display: "block" }}>
-                    <span className="app-field-label" style={{ fontSize: 13 }}>Vistoria de</span>
-                    <input
-                      type="date"
-                      value={inspectionFrom}
-                      onChange={(e) => setInspectionFrom(e.target.value)}
-                      className="app-input tnum"
-                      aria-label="Vistoria de"
-                      style={{ marginTop: 4 }}
-                    />
-                  </label>
-                  <label style={{ display: "block" }}>
-                    <span className="app-field-label" style={{ fontSize: 13 }}>Vistoria até</span>
-                    <input
-                      type="date"
-                      value={inspectionTo}
-                      onChange={(e) => setInspectionTo(e.target.value)}
-                      className="app-input tnum"
-                      aria-label="Vistoria até"
-                      style={{ marginTop: 4 }}
-                    />
-                  </label>
-                  <label style={{ display: "block" }}>
-                    <span className="app-field-label" style={{ fontSize: 13 }}>Conclusão até</span>
-                    <input
-                      type="date"
-                      value={dueUntil}
-                      onChange={(e) => setDueUntil(e.target.value)}
-                      className="app-input tnum"
-                      aria-label="Conclusão até"
-                      style={{ marginTop: 4 }}
-                    />
-                  </label>
-                </div>
+                  + Adicionar filtro de data
+                </button>
                 {dateFilterCount > 0 && (
                   <button
                     type="button"

@@ -6,7 +6,7 @@ import { formatAddress } from "../domain/address";
 
 export type StatusFilter = "all" | ServiceOrderStatus;
 export type QuickFilter = "none" | "today" | "overdue" | "awaiting";
-export type OrderSort = "agenda" | "recent";
+export type OrderSort = "agenda" | "recent" | "received" | "due";
 
 export interface DashboardCounts {
   today: number;
@@ -55,6 +55,8 @@ export interface OrderFilters {
   /** Vistoria (yyyy-mm-dd, inclusive; ignora "a agendar" quando filtrado). */
   inspectionFrom?: string;
   inspectionTo?: string;
+  /** Conclusão a partir de (yyyy-mm-dd, inclusive; ignora sem prazo quando filtrado). */
+  dueFrom?: string;
   /** Conclusão até (yyyy-mm-dd, inclusive; ignora sem prazo quando filtrado). */
   dueUntil?: string;
 }
@@ -72,6 +74,7 @@ export function filterOrders(orders: ServiceOrder[], opts: OrderFilters): Servic
     if (opts.receivedTo && o.receivedAt > opts.receivedTo) return false;
     if (opts.inspectionFrom && (o.inspectionDate === null || o.inspectionDate < opts.inspectionFrom)) return false;
     if (opts.inspectionTo && (o.inspectionDate === null || o.inspectionDate > opts.inspectionTo)) return false;
+    if (opts.dueFrom && (o.dueDate === null || o.dueDate < opts.dueFrom)) return false;
     if (opts.dueUntil && (o.dueDate === null || o.dueDate > opts.dueUntil)) return false;
     return true;
   });
@@ -80,6 +83,21 @@ export function filterOrders(orders: ServiceOrder[], opts: OrderFilters): Servic
 export function sortOrders(orders: ServiceOrder[], sort: OrderSort): ServiceOrder[] {
   const arr = [...orders];
   if (sort === "recent") return arr.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  if (sort === "received") {
+    return arr.sort((a, b) => {
+      if (a.receivedAt !== b.receivedAt) return a.receivedAt < b.receivedAt ? 1 : -1;
+      return a.updatedAt < b.updatedAt ? 1 : -1;
+    });
+  }
+  if (sort === "due") {
+    return arr.sort((a, b) => {
+      if (a.dueDate === null && b.dueDate === null) return a.updatedAt < b.updatedAt ? 1 : -1;
+      if (a.dueDate === null) return 1;
+      if (b.dueDate === null) return -1;
+      if (a.dueDate !== b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
+      return a.updatedAt < b.updatedAt ? 1 : -1;
+    });
+  }
   return arr.sort((a, b) => {
     const da = inspectionDateTime(a);
     const db = inspectionDateTime(b);

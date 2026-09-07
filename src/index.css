@@ -985,9 +985,49 @@ textarea {
   .app-toolbar { flex-direction: row; align-items: center; flex-wrap: wrap; }
   .app-toolbar-search { min-width: 280px; flex: 1; }
 }
-.app-toolbar-row { display: flex; gap: 8px; }
 .app-toolbar-search { position: relative; flex: 1; min-width: 0; }
-.app-toolbar-search .app-input { padding-left: 40px; }
+.app-toolbar-search .app-input { padding-left: 38px; }
+.app-input--compact { min-height: 44px; font-size: 15px; padding: 8px 12px; }
+.app-toolbar-search .app-input--compact { padding-left: 36px; }
+.app-toolbar-topline { display: flex; gap: 8px; align-items: center; flex-basis: 100%; }
+.app-toolbar-topline .app-toolbar-search { flex: 1 1 auto; }
+.app-sort-select {
+  flex: 0 1 172px; min-width: 0;
+  font-size: 13.5px; font-weight: 700;
+  text-overflow: ellipsis;
+}
+@media (min-width: 1024px) { .app-sort-select { flex-basis: 250px; } }
+.app-dates-toggle { min-height: 44px; flex-shrink: 0; }
+.app-datepanel { padding: 16px; flex-basis: 100%; }
+.app-daterows { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.app-daterow { background: #f7f8fa; border: 1px solid var(--color-line); border-radius: 14px; padding: 12px; }
+.app-daterow-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.app-daterow-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #8a97ad; }
+.app-daterow-remove {
+  background: none; border: none; cursor: pointer;
+  min-height: 36px; padding: 6px 4px;
+  font-size: 13px; font-weight: 700; color: #b91c1c;
+}
+.app-daterow-remove:hover { text-decoration: underline; }
+.app-daterow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.app-daterow-field { display: block; min-width: 0; }
+.app-daterow-field > span { display: block; font-size: 12.5px; font-weight: 800; color: #3d4c63; margin-bottom: 4px; }
+.app-daterow-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.app-daterow-dates > :only-child { grid-column: 1 / -1; }
+.app-daterow-summary {
+  margin: 10px 0 0; padding: 8px 12px;
+  font-size: 13px; font-weight: 700; color: #1d4ed8;
+  background: #eaf0fb; border-radius: 10px;
+}
+.app-daterow-summary--empty { color: #8a97ad; background: #eef1f6; font-weight: 600; }
+.app-datepanel-add {
+  width: 100%; min-height: 48px;
+  border-radius: 12px; border: 1.5px dashed #b9c8e2;
+  background: #fff; color: #1d4ed8;
+  font-size: 14.5px; font-weight: 800; cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.app-datepanel-add:hover { border-color: #1d4ed8; background: #f6f9ff; }
 .app-toolbar-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #8a97ad; font-size: 16px; }
 .app-chiprail { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
 @media (min-width: 1024px) { .app-chiprail { overflow: visible; flex-wrap: wrap; } }
