@@ -17,10 +17,9 @@ export const landForm: FormDefinition = {
     {
       id: "identificacao",
       title: "Identificação",
-      description: "Cabeçalho da vistoria.",
+      description: "Dados do terreno. O número da OS vem da ordem de serviço.",
       order: 1,
       fields: [
-        { id: "os", label: "O.S. Nº", type: "text", placeholder: "Ex.: 1234", required: true },
         { id: "data_vistoria", label: "Data da vistoria", type: "date", required: true },
         { id: "coordenadas", label: "Coordenadas", type: "text", placeholder: "Ex.: -23.3, -51.1" },
         { id: "empresa", label: "Nome da empresa", type: "text", placeholder: "Nome da empresa" },

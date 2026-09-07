@@ -39,7 +39,7 @@ o imóvel e o aparelho, sessões de vários minutos. A interface deve funcionar 
 | Raio | 16px cards / 12px inputs | — |
 | Sombra | 1 nível, só em cards elevados/nav | sem sombras decorativas |
 
-Proibido: gradientes, glassmorphism, >2 cores de destaque por tela, dashboard,
+Proibido: gradientes, glassmorphism, >2 cores de destaque por tela,
 ícones aleatórios, dropdown para ≤7 opções, campos <48px.
 
 ## 4. Componentes (biblioteca própria — consistência obrigatória)
@@ -63,6 +63,11 @@ Proibido: gradientes, glassmorphism, >2 cores de destaque por tela, dashboard,
   exatamente à seção. Resumo no topo com anel de % concluído.
 - **Estados**: `Salvando… → Salvo ✓`, retomar rascunho, vazio ("Nada preenchido"),
   conclusão com resumo (O.S. + seções).
+- **StatusChip** (OS): ponto + texto do status, nunca só cor.
+- **OSCard**: OS nº + chip + contratante + endereço + data/hora + selos
+  (Com/Sem ficha, Atrasada/Atenção).
+- **Abas da OS**: Dados | Ficha | Documentos — segmentado 52px.
+- **ConfirmSheet**: confirmação destrutiva em 2 toques (sem digitar).
 
 ## 5. Regras de dados (não quebrar)
 

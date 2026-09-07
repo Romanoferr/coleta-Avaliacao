@@ -34,10 +34,9 @@ export const apartmentForm: FormDefinition = {
     {
       id: "identificacao",
       title: "Identificação",
-      description: "Dados do cabeçalho da O.S.",
+      description: "Dados do imóvel. O número da OS vem da ordem de serviço.",
       order: 1,
       fields: [
-        { id: "os", label: "O.S. Nº", type: "text", placeholder: "Ex.: 1234", required: true },
         { id: "data", label: "Data", type: "date", required: true },
         { id: "cliente", label: "Cliente", type: "text", placeholder: "Nome do cliente" },
         { id: "edificio", label: "Edifício", type: "text", placeholder: "Nome do edifício" },

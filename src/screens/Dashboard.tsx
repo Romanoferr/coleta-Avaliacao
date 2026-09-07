@@ -1,0 +1,175 @@
+/**
+ * Tela inicial: Dashboard de trabalho + Lista de OS.
+ * Mobile (campo): cartões acionáveis + busca + cards.
+ * Desktop: mesma informação em coluna larga; tabela fica para evolução.
+ */
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AppHeader } from "../components/chrome";
+import { EmptyState, OrderCard } from "../components/os";
+import type { ServiceOrderStatus } from "../domain/serviceOrder";
+import { STATUS_LABEL } from "../domain/serviceOrder";
+import { dashboardCounts, filterOrders, sortOrders } from "../application/selectors";
+import type { OrderSort, QuickFilter, StatusFilter } from "../application/selectors";
+import { useStore } from "../state/store";
+
+const STATUS_CHIPS: StatusFilter[] = ["all", "received", "scheduled", "inspected", "drafting", "completed", "cancelled"];
+
+function chipLabel(s: StatusFilter): string {
+  return s === "all" ? "Todas" : STATUS_LABEL[s as ServiceOrderStatus];
+}
+
+export default function Dashboard() {
+  const { orders } = useStore();
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [quick, setQuick] = useState<QuickFilter>("none");
+  const [sort, setSort] = useState<OrderSort>("agenda");
+
+  const counts = useMemo(() => dashboardCounts(orders), [orders]);
+  const list = useMemo(
+    () => sortOrders(filterOrders(orders, { search, status, quick }), sort),
+    [orders, search, status, quick, sort]
+  );
+  const filtering = search.trim() !== "" || status !== "all" || quick !== "none";
+
+  const pickQuick = (q: QuickFilter) => {
+    setQuick((prev) => (prev === q ? "none" : q));
+    setStatus("all");
+  };
+
+  const cards: { key: QuickFilter | "drafting" | "completed"; label: string; value: number; cls: string }[] = [
+    { key: "today", label: "Para hoje", value: counts.today, cls: "bg-blue-50 text-brand" },
+    { key: "overdue", label: "Atrasadas", value: counts.overdue, cls: "bg-red-50 text-red-700" },
+    { key: "awaiting", label: "Aguard. vistoria", value: counts.awaiting, cls: "bg-amber-50 text-amber-800" },
+    { key: "drafting", label: "Em elaboração", value: counts.drafting, cls: "bg-violet-50 text-violet-700" },
+    { key: "completed", label: "Concluídas", value: counts.completed, cls: "bg-green-50 text-green-700" },
+  ];
+
+  return (
+    <div className="min-h-dvh bg-app text-ink">
+      <AppHeader eyebrow="Vistoria técnica" title="Ordens de serviço" />
+      <main className="mx-auto max-w-xl px-4 pb-10">
+        <section className="animate-rise pt-5">
+          <div className="rounded-3xl bg-ink p-6 text-white">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+              Avaliação de imóveis em campo
+            </p>
+            <h2 className="mt-1.5 text-[26px] font-extrabold leading-[1.15] tracking-tight">Trabalho de hoje</h2>
+            <p className="tnum mt-1.5 text-[14.5px] leading-snug text-slate-300">
+              {counts.today === 0
+                ? "Nenhuma vistoria agendada para hoje."
+                : `${counts.today} ${counts.today === 1 ? "vistoria" : "vistorias"} para hoje.`}
+              {counts.overdue > 0 ? ` ${counts.overdue} atrasada${counts.overdue === 1 ? "" : "s"}.` : ""}
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/os/new")}
+              className="mt-4 h-[60px] w-full rounded-2xl bg-brand text-[17px] font-extrabold text-white shadow-[0_2px_8px_rgba(29,78,216,0.35)] active:bg-brand-dark"
+            >
+              + Nova ordem de serviço
+            </button>
+          </div>
+        </section>
+
+        <section className="mt-4 grid grid-cols-2 gap-2" aria-label="Resumo do trabalho">
+          {cards.map((c) => {
+            const active =
+              (c.key === "drafting" && status === "drafting") ||
+              (c.key === "completed" && status === "completed") ||
+              quick === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  if (c.key === "drafting" || c.key === "completed") {
+                    setStatus((s) => (s === c.key ? "all" : (c.key as StatusFilter)));
+                    setQuick("none");
+                  } else pickQuick(c.key);
+                }}
+                className={`rounded-2xl border-[1.5px] p-3.5 text-left transition-all active:scale-[0.98] ${
+                  active ? "border-brand bg-blue-50/60" : "border-slate-200 bg-white"
+                }`}
+              >
+                <span className={`tnum block text-[24px] font-extrabold leading-none ${active ? "text-brand" : ""}`}>
+                  {c.value}
+                </span>
+                <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[12px] font-bold ${c.cls}`}>
+                  {c.label}
+                </span>
+              </button>
+            );
+          })}
+        </section>
+
+        <section className="mt-5">
+          <div className="flex gap-2">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar nº, contratante, endereço…"
+              aria-label="Buscar ordens de serviço"
+              className="h-[52px] min-w-0 flex-1 rounded-xl border-[1.5px] border-slate-300 bg-white px-4 text-[16px] placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-4 focus:ring-blue-600/15"
+            />
+            <button
+              type="button"
+              onClick={() => setSort((s) => (s === "agenda" ? "recent" : "agenda"))}
+              aria-label={sort === "agenda" ? "Ordenando por agenda. Trocar para recentes." : "Ordenando por recentes. Trocar para agenda."}
+              className="h-[52px] w-[52px] shrink-0 rounded-xl border-[1.5px] border-slate-200 bg-white text-[20px] text-slate-600 active:bg-slate-50"
+            >
+              ⇅
+            </button>
+          </div>
+          <p className="tnum mt-1.5 text-[12px] font-semibold text-slate-400">
+            {sort === "agenda" ? "Ordem: agenda (data da vistoria)" : "Ordem: atualizadas por último"}
+          </p>
+          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filtrar por status">
+            {STATUS_CHIPS.map((s) => {
+              const active = status === s && quick === "none";
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setStatus(s);
+                    setQuick("none");
+                  }}
+                  className={`h-11 shrink-0 rounded-full border-[1.5px] px-4 text-[14px] font-bold transition-all active:scale-[0.97] ${
+                    active ? "border-brand bg-blue-50 text-blue-950" : "border-slate-200 bg-white text-slate-600"
+                  }`}
+                >
+                  {chipLabel(s)}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="mt-3 flex flex-col gap-2.5" aria-live="polite">
+          {list.length === 0 ? (
+            <EmptyState
+              title={filtering ? "Nada encontrado" : "Nenhuma OS ainda"}
+              hint={
+                filtering
+                  ? "Ajuste a busca ou os filtros."
+                  : "Crie a primeira ordem de serviço para começar. A ficha é criada dentro da OS."
+              }
+              actionLabel={filtering ? undefined : "+ Nova ordem de serviço"}
+              onAction={filtering ? undefined : () => navigate("/os/new")}
+            />
+          ) : (
+            list.map((o) => <OrderCard key={o.id} order={o} onOpen={() => navigate(`/os/${o.id}`)} />)
+          )}
+        </section>
+        <p className="mt-3 text-center text-[12px] text-slate-400">
+          Os dados ficam salvos neste aparelho durante o trabalho.
+        </p>
+      </main>
+    </div>
+  );
+}
