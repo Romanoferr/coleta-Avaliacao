@@ -11,6 +11,7 @@ import { addressLine, isOrderOverdue, STATUS_LABEL } from "../domain/serviceOrde
 import type { ServiceOrder, ServiceOrderStatus } from "../domain/serviceOrder";
 import { dashboardCounts, filterOrders, sortOrders } from "../application/selectors";
 import type { OrderSort, QuickFilter, StatusFilter } from "../application/selectors";
+import { useBilling } from "../state/billing";
 import { useStore } from "../state/store";
 
 const STATUS_CHIPS: StatusFilter[] = ["all", "received", "scheduled", "inspected", "drafting", "completed", "cancelled"];
@@ -66,6 +67,7 @@ function describeDateRow(r: DateFilterRow): string | null {
 
 export default function Dashboard() {
   const { orders, ready, loadError, stale, reload, backend, cloudMigration, migrateLocalToCloud } = useStore();
+  const { status: billingStatus } = useBilling();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -179,6 +181,14 @@ export default function Dashboard() {
           Sem conexão. Mostrando a última cópia salva. Edições desativadas até reconectar.{" "}
           <button type="button" onClick={() => void reload()} className="underline underline-offset-2">
             Tentar de novo
+          </button>
+        </p>
+      ) : null}
+      {billingStatus === "past_due" ? (
+        <p className="app-alert app-alert--warn" style={{ marginBottom: 12 }}>
+          Pagamento pendente na sua assinatura. Regularize para não perder o acesso.{" "}
+          <button type="button" onClick={() => navigate("/assinatura")} className="underline underline-offset-2">
+            Ver assinatura
           </button>
         </p>
       ) : null}

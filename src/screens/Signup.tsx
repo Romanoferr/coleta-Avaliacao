@@ -39,7 +39,7 @@ export default function Signup() {
         if (needsConfirmation) {
           setCreatedEmail(email.trim());
         } else {
-          navigate("/dashboard", { replace: true });
+          navigate("/planos", { replace: true });
         }
       })
       .catch((e: unknown) => {

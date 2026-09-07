@@ -1,7 +1,8 @@
 /**
  * Rotas.
- * Públicas: / (landing), /login, /cadastro, /recuperar-senha, /reset-password.
- * Protegidas: /dashboard, /rota e /os/* (exigem sessão; modo local dispensa login).
+ * Públicas: / (landing), /login, /cadastro, /recuperar-senha, /reset-password, /planos.
+ * Protegidas por login: /dashboard, /rota, /os/*, /assinatura.
+ * Protegidas por assinatura: /dashboard, /rota, /os/* (paywall, exceto modo local).
  * /reset-password é pública de propósito: o fluxo de recuperação chega sem
  * sessão normal (só com o code do e-mail).
  */
@@ -17,7 +18,10 @@ import OrderForm from "./screens/OrderForm";
 import ResetPassword from "./screens/ResetPassword";
 import RouteOptimizer from "./screens/RouteOptimizer";
 import Signup from "./screens/Signup";
+import Plans from "./screens/Plans";
+import Subscription from "./screens/Subscription";
 import { useAuth } from "./state/auth";
+import { useBilling } from "./state/billing";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -32,6 +36,29 @@ function RequireAuth({ children }: { children: ReactNode }) {
   }
   if (status === "local" || status === "authenticated") return <>{children}</>;
   return <Navigate to="/login" replace />;
+}
+
+/**
+ * Paywall: exige assinatura ativa ou trial.
+ * Modo local (sem Supabase) passa direto, sem cobranca.
+ * Sem assinatura, cancelada ou nao paga: vai para /planos.
+ * past_due: permite entrar, Dashboard exibe aviso para regularizar.
+ */
+function RequireSubscription({ children }: { children: ReactNode }) {
+  const { status: authStatus } = useAuth();
+  const { status, loading } = useBilling();
+  if (authStatus === "local") return <>{children}</>;
+  if (loading) {
+    return (
+      <div className="min-h-dvh bg-app text-ink">
+        <main className="mx-auto max-w-xl px-4 pb-10 pt-16 text-center">
+          <p className="text-[14px] font-semibold text-slate-400">Verificando assinatura…</p>
+        </main>
+      </div>
+    );
+  }
+  if (status === "active" || status === "trialing" || status === "past_due") return <>{children}</>;
+  return <Navigate to="/planos" replace />;
 }
 
 /** Telas de auth: autenticado vai ao dashboard; local segue sem login. */
@@ -56,12 +83,14 @@ const router = createHashRouter([
   { path: "/cadastro", element: <RedirectIfAuthenticated><Signup /></RedirectIfAuthenticated> },
   { path: "/recuperar-senha", element: <RedirectIfAuthenticated><ForgotPassword /></RedirectIfAuthenticated> },
   { path: "/reset-password", element: <ResetPassword /> },
-  { path: "/dashboard", element: <RequireAuth><Dashboard /></RequireAuth> },
-  { path: "/os/new", element: <RequireAuth><OrderForm mode="new" /></RequireAuth> },
-  { path: "/os/:id", element: <RequireAuth><OrderDetail /></RequireAuth> },
-  { path: "/os/:id/edit", element: <RequireAuth><OrderForm mode="edit" /></RequireAuth> },
-  { path: "/os/:id/ficha", element: <RequireAuth><InspectionScreen /></RequireAuth> },
-  { path: "/rota", element: <RequireAuth><RouteOptimizer /></RequireAuth> },
+  { path: "/dashboard", element: <RequireAuth><RequireSubscription><Dashboard /></RequireSubscription></RequireAuth> },
+  { path: "/planos", element: <Plans /> },
+  { path: "/assinatura", element: <RequireAuth><Subscription /></RequireAuth> },
+  { path: "/os/new", element: <RequireAuth><RequireSubscription><OrderForm mode="new" /></RequireSubscription></RequireAuth> },
+  { path: "/os/:id", element: <RequireAuth><RequireSubscription><OrderDetail /></RequireSubscription></RequireAuth> },
+  { path: "/os/:id/edit", element: <RequireAuth><RequireSubscription><OrderForm mode="edit" /></RequireSubscription></RequireAuth> },
+  { path: "/os/:id/ficha", element: <RequireAuth><RequireSubscription><InspectionScreen /></RequireSubscription></RequireAuth> },
+  { path: "/rota", element: <RequireAuth><RequireSubscription><RouteOptimizer /></RequireSubscription></RequireAuth> },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
