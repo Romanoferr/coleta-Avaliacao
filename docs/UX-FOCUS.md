@@ -51,10 +51,16 @@ Proibido: gradientes, glassmorphism, >2 cores de destaque por tela,
 - **CheckCard**: lista 1 coluna; **grade 2 colunas compacta quando todas as
   opções têm rótulo curto (≤24 chars)** — reduz rolagem sem quebrar legibilidade.
   Selecionado = ✓ + mesma linguagem do radio.
-- **Stepper**: card único `− valor +`, botões 56px, input central numérico.
+- **Stepper**: card único `− valor +`, botões 56px, valor somente-leitura —
+  só para quantidades pequenas (cômodos, vagas). Números grandes usam Number.
 - **YesNo**: 2 botões segmentados, Sim=verde / Não=vermelho quando ativos.
+  Com `otherDetailId`, Sim revela campo de descrição abaixo.
+- **Compass**: rosa dos ventos 3×3 para direção única (N/NE/L/SE/S/SO/O/NO),
+  botões 56px+, centro mostra a seleção atual.
 - **Text/Number/Currency/Date/Tel/TextArea**: `min-h 56px`, borda 1.5px,
   `focus` = anel primário + borda primária, `font-size: 16px` (anti-zoom iOS).
+  Number aceita só dígitos (`inputMode=numeric`, teclado numérico no celular).
+  Currency aplica máscara pt-BR automática (`. `milhar, `,` decimal).
 - **BottomNav**: `Voltar` (fantasma) + `Continuar →` (primária, mostra o nome da
   próxima etapa quando couber); última seção = `Revisar →`.
 - **SectionHeader**: eyebrow (`ETAPA X DE Y • Z%`), título 22px, descrição curta,

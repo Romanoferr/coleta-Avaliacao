@@ -1,13 +1,6 @@
-import type { FormDefinition, FormField } from "../form-engine/types";
+import type { FormDefinition } from "../form-engine/types";
 
 const opt = (label: string) => ({ value: label, label });
-
-const counter = (id: string, label: string): FormField => ({
-  id,
-  label,
-  type: "counter",
-  min: 0,
-});
 
 export const landForm: FormDefinition = {
   propertyType: "land",
@@ -259,7 +252,7 @@ export const landForm: FormDefinition = {
           type: "radio",
           options: ["Isolado", "Inserido em Conjunto Habitacional", "Inserido em outro Condomínio"].map(opt),
         },
-        counter("cond_num_unidades", "Número de Unidades do Condomínio"),
+        { id: "cond_num_unidades", label: "Número de Unidades do Condomínio", type: "number", placeholder: "Ex.: 150", min: 0 },
       ],
     },
   ],

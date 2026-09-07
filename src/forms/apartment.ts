@@ -133,14 +133,14 @@ export const apartmentForm: FormDefinition = {
     {
       id: "bloco-dados",
       title: "Bloco / Prédio — Dados",
-      description: "Números do prédio. Toque em + / −.",
+      description: "Números do prédio. Digite direto no campo.",
       order: 5,
       fields: [
-        { id: "num_pavimentos", label: "Nº. de pavimentos", type: "counter" },
-        { id: "aptos_por_pavimento", label: "Nº. de apto. por pavimento", type: "counter" },
-        { id: "unidades_predio", label: "Nº. de unidades no prédio", type: "counter" },
-        { id: "qtd_elevadores", label: "Quantidade de elevadores", type: "counter" },
-        { id: "unidades_condominio", label: "Nº. de unidades no condomínio", type: "counter" },
+        { id: "num_pavimentos", label: "Nº. de pavimentos", type: "number", placeholder: "Ex.: 12", min: 0 },
+        { id: "aptos_por_pavimento", label: "Nº. de apto. por pavimento", type: "number", placeholder: "Ex.: 8", min: 0 },
+        { id: "unidades_predio", label: "Nº. de unidades no prédio", type: "number", placeholder: "Ex.: 96", min: 0 },
+        { id: "qtd_elevadores", label: "Quantidade de elevadores", type: "number", placeholder: "Ex.: 2", min: 0 },
+        { id: "unidades_condominio", label: "Nº. de unidades no condomínio", type: "number", placeholder: "Ex.: 200", min: 0 },
         {
           id: "idade_estimada_predio",
           label: "Idade estimada",
@@ -251,8 +251,9 @@ export const apartmentForm: FormDefinition = {
         {
           id: "orientacao",
           label: "Orientação",
-          type: "checkbox",
-          options: ["Norte", "Sul", "Leste", "Oeste"].map(opt),
+          type: "compass",
+          hint: "Toque na direção predominante da unidade.",
+          options: ["Norte", "Nordeste", "Leste", "Sudeste", "Sul", "Sudoeste", "Oeste", "Noroeste"].map(opt),
         },
       ],
     },
@@ -277,7 +278,7 @@ export const apartmentForm: FormDefinition = {
         {
           id: "vagas_situacao",
           label: "Situação das vagas",
-          type: "checkbox",
+          type: "radio",
           options: [
             "Vagas rotativas",
             "Vagas de garagem informal",
@@ -375,7 +376,7 @@ export const apartmentForm: FormDefinition = {
         {
           id: "uso_unidade",
           label: "Uso da unidade",
-          type: "checkbox",
+          type: "radio",
           options: ["Residencial", "Comercial", "Industrial", "Misto"].map(opt),
         },
         {
@@ -421,15 +422,16 @@ export const apartmentForm: FormDefinition = {
         {
           id: "uso_predio",
           label: "Uso do prédio",
-          type: "checkbox",
+          type: "radio",
           options: ["Residencial", "Comercial", "Industrial", "Misto"].map(opt),
         },
         {
           id: "area_nao_averbada",
-          label: "Área não averbada",
-          type: "text",
-          hint: "Preencha 'Não' ou descreva. Ex.: Sim — edícula 20m²",
-          placeholder: "Sim / Não + descrição",
+          label: "Há área não averbada?",
+          type: "yesno",
+          hint: "Se sim, descreva abaixo.",
+          otherDetailId: "area_nao_averbada_det",
+          otherDetailLabel: "Descreva a área não averbada",
         },
       ],
     },

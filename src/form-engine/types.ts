@@ -22,6 +22,7 @@ export type FieldType =
   | "radio" // seleção única — cards tocáveis
   | "checkbox" // seleção múltipla — chips/cards tocáveis
   | "yesno" // Sim/Não segmentado
+  | "compass" // seleção única de direção — rosa dos ventos tocável
   | "subtitle"; // apenas título de subgrupo dentro da seção (sem valor)
 
 export interface FieldOption {
