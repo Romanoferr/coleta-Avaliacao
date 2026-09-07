@@ -40,9 +40,10 @@ da máquina no navegador do celular.
    `supabase/migrations/202609080001_core.sql` →
    `202609080002_rls.sql` → `202609080003_ownership.sql` →
    backfill de `owner_id` → `202609080004_owner_not_null.sql`.
-4. Crie os usuários em Authentication → Users → Add user
-   (marque **Auto Confirm user**).
-5. Reinicie o `npm run dev` e entre com um dos usuários.
+4. No Supabase Dashboard: Authentication → Email provider habilitado (+
+   Redirect URLs com `/#/reset-password` e `/#/login`, ver `docs/SUPABASE.md`
+   § 5b). Opcional: `VITE_APP_URL` no env para o redirect do Auth.
+5. Reinicie o `npm run dev` e crie a conta em `/cadastro` (ou entre em `/login`).
 
 Guia completo (RLS, backfill, seed, teste com dois usuários, problemas
 comuns): [`docs/SUPABASE.md`](docs/SUPABASE.md).
@@ -63,8 +64,9 @@ comuns): [`docs/SUPABASE.md`](docs/SUPABASE.md).
 
 ```text
 src/
-├── screens/        Landing, Login, Dashboard, OrderForm, OrderDetail, InspectionScreen
-├── state/          Auth (sessão) e Store (casos de uso + cache por usuário)
+├── screens/        Landing, Login, Signup, ForgotPassword, ResetPassword, Dashboard, OrderForm, OrderDetail, InspectionScreen
+├── state/          Auth (sessão Supabase) e Store (casos de uso + cache por usuário)
+├── state/authValidation.ts  Validação e mensagens amigáveis do Auth (testado)
 ├── domain/         Regras de negócio puras (OS, ficha, documentos, status)
 ├── repositories/   Portas + implementações (Supabase / localStorage)
 ├── infrastructure/supabase/  Client único + tipos do schema
@@ -75,7 +77,8 @@ supabase/migrations/  Schema versionado (tabelas, RLS, ownership)
 docs/               SUPABASE.md (operação) · UX-FOCUS.md (padrão visual)
 ```
 
-Rotas: `/` landing → `/login` → `/dashboard` (protegida) → `/os/*` (protegida).
+Rotas: `/` landing → `/login` / `/cadastro` → `/dashboard` (protegida) → `/os/*` (protegida).
+Recuperação: `/recuperar-senha` → e-mail → `/reset-password` (pública no fluxo).
 Sem `.env`, o app roda em modo local sem login.
 
 ## Segurança (resumo)

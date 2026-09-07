@@ -25,11 +25,22 @@ const DOT: Record<ServiceOrderStatus, string> = {
   cancelled: "bg-slate-300",
 };
 
+/** Emoji por status (nunca só cor: chip sempre tem texto + emoji). */
+export const STATUS_EMOJI: Record<ServiceOrderStatus, string> = {
+  received: "📥",
+  scheduled: "📅",
+  inspected: "🔍",
+  drafting: "✏️",
+  completed: "✅",
+  cancelled: "🚫",
+};
+
 export function StatusChip({ status }: { status: ServiceOrderStatus }) {
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold ${CHIP[status]}`}
     >
+      <span aria-hidden>{STATUS_EMOJI[status]}</span>
       <span className={`h-1.5 w-1.5 rounded-full ${DOT[status]}`} aria-hidden />
       {STATUS_LABEL[status]}
     </span>

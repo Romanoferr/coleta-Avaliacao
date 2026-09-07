@@ -29,6 +29,13 @@ export function getSupabase(): SupabaseClient<Database> | null {
   return cached;
 }
 
+/** Base pública da aplicação para redirects do Auth (configurável, sem hardcode). */
+export function getAppUrl(): string {
+  const fromEnv = (import.meta.env.VITE_APP_URL as string | undefined)?.trim().replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
+  return "";
+}
 /**
  * Exige backend configurado. Telas chamam repositories (que já tratam),
  * nunca isto diretamente — exportado só para diagnóstico/teste.

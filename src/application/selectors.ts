@@ -44,10 +44,22 @@ function matchesSearch(order: ServiceOrder, q: string): boolean {
   return needle.split(/\s+/).every((part) => hay.includes(part));
 }
 
-export function filterOrders(
-  orders: ServiceOrder[],
-  opts: { search: string; status: StatusFilter; quick: QuickFilter; today?: string }
-): ServiceOrder[] {
+export interface OrderFilters {
+  search: string;
+  status: StatusFilter;
+  quick: QuickFilter;
+  today?: string;
+  /** Recebimento (yyyy-mm-dd, inclusive). */
+  receivedFrom?: string;
+  receivedTo?: string;
+  /** Vistoria (yyyy-mm-dd, inclusive; ignora "a agendar" quando filtrado). */
+  inspectionFrom?: string;
+  inspectionTo?: string;
+  /** Conclusão até (yyyy-mm-dd, inclusive; ignora sem prazo quando filtrado). */
+  dueUntil?: string;
+}
+
+export function filterOrders(orders: ServiceOrder[], opts: OrderFilters): ServiceOrder[] {
   const today = opts.today ?? todayLocalIso();
   return liveOrders(orders).filter((o) => {
     if (!matchesSearch(o, opts.search)) return false;
@@ -56,6 +68,11 @@ export function filterOrders(
       return false;
     if (opts.quick === "overdue" && !isOrderOverdue(o, today)) return false;
     if (opts.quick === "awaiting" && !(o.status === "scheduled" && o.inspectionId === null)) return false;
+    if (opts.receivedFrom && o.receivedAt < opts.receivedFrom) return false;
+    if (opts.receivedTo && o.receivedAt > opts.receivedTo) return false;
+    if (opts.inspectionFrom && (o.inspectionDate === null || o.inspectionDate < opts.inspectionFrom)) return false;
+    if (opts.inspectionTo && (o.inspectionDate === null || o.inspectionDate > opts.inspectionTo)) return false;
+    if (opts.dueUntil && (o.dueDate === null || o.dueDate > opts.dueUntil)) return false;
     return true;
   });
 }

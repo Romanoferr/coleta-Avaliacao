@@ -46,13 +46,25 @@ cada arquivo de `supabase/migrations/` **em ordem** → Run. (Funciona, mas pref
 Verificação: Table Editor deve mostrar `orders`, `inspections`, `documents`;
 em `orders` → Policies, as policies `owner_all_*` (ver § RLS).
 
-## 5b. Usuários (login e-mail + senha, sem cadastro no app)
+## 5b. Usuários (cadastro + login e-mail/senha via Supabase Auth)
 
-1. Dashboard → **Authentication → Users → Add user → Create new user**.
-2. Preencha e-mail + senha e marque **Auto Confirm user** (sem isso o login
-   retorna "e-mail não confirmado").
-3. Repita para o segundo usuário de teste (§ Teste dois usuários).
-4. O app tem só login: `/` (landing) → `/login` → `/dashboard`.
+Fluxo no app: `/cadastro` (`signUp`) → confirmação por e-mail (se habilitada)
+→ `/login` (`signInWithPassword`) → `/dashboard`. Recuperação: `/login` →
+"Esqueci minha senha" (`resetPasswordForEmail` → `/recuperar-senha`) → link
+no e-mail abre `/#/reset-password` (`updateUser`). Logout: `signOut` no
+Dashboard (limpa OSs/drafts do usuário anterior da memória).
+
+1. Dashboard → **Authentication → Sign In / Providers → Email**: deixe
+   **habilitado**. Para exigir confirmação antes do login, mantenha
+   **Confirm email** ligado (o app mostra "Verifique seu e-mail" + reenvio).
+2. **Authentication → URL Configuration → Redirect URLs**: cadastre a base
+   de dev e de produção com as rotas de hash, ex.:
+   `http://localhost:5173/#/reset-password`, `http://localhost:5173/#/login`
+   e os equivalentes de produção (`VITE_APP_URL`).
+3. Opcional (dev): **Authentication → Users → Add user → Create new user**
+   com **Auto Confirm user** para testes sem confirmação.
+4. O nome informado no cadastro vai para `user_metadata.display_name` do
+   Auth — não há tabela de senhas nem perfil paralelo no banco da aplicação.
 
 ## 5c. Backfill de owner (registros pré-auth — NÃO apaga nada)
 

@@ -1,9 +1,9 @@
 /**
- * Login — e-mail + senha (Supabase Auth). Sem cadastro aqui:
- * usuários são criados pelo responsável no painel (ver docs/SUPABASE.md).
+ * Login — e-mail + senha (Supabase Auth). Cadastro e recuperação
+ * têm rotas próprias (/cadastro, /recuperar-senha).
  */
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { AppHeader } from "../components/chrome";
 import { OsField, osInputCls } from "../components/os";
 import { loginErrorMessage, useAuth } from "../state/auth";
@@ -90,9 +90,18 @@ export default function Login() {
           >
             {busy ? "Entrando…" : "Entrar"}
           </button>
+          <Link
+            to="/recuperar-senha"
+            className="text-center text-[14px] font-extrabold text-brand underline underline-offset-2"
+          >
+            Esqueci minha senha
+          </Link>
         </form>
-        <p className="mt-3 text-center text-[12.5px] text-slate-400">
-          Sem acesso? Peça ao responsável para criar seu usuário.
+        <p className="mt-3 text-center text-[13.5px] text-slate-500">
+          Não tem conta?{" "}
+          <Link to="/cadastro" className="font-extrabold text-brand underline underline-offset-2">
+            Criar conta
+          </Link>
         </p>
       </main>
     </div>

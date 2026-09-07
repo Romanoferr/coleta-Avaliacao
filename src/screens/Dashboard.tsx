@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppHeader } from "../components/chrome";
 import { EmptyState, OrderCard } from "../components/os";
+import { STATUS_EMOJI } from "../components/os";
 import type { ServiceOrderStatus } from "../domain/serviceOrder";
 import { STATUS_LABEL } from "../domain/serviceOrder";
 import { dashboardCounts, filterOrders, sortOrders } from "../application/selectors";
@@ -17,24 +18,52 @@ import { useAuth } from "../state/auth";
 const STATUS_CHIPS: StatusFilter[] = ["all", "received", "scheduled", "inspected", "drafting", "completed", "cancelled"];
 
 function chipLabel(s: StatusFilter): string {
-  return s === "all" ? "Todas" : STATUS_LABEL[s as ServiceOrderStatus];
+  if (s === "all") return "Todas";
+  return `${STATUS_EMOJI[s as ServiceOrderStatus]} ${STATUS_LABEL[s as ServiceOrderStatus]}`;
 }
 
 export default function Dashboard() {
   const { orders, ready, loadError, stale, reload, backend, cloudMigration, migrateLocalToCloud } = useStore();
-  const { status: authStatus, user, signOut } = useAuth();
+  const { status: authStatus, user, displayName, signOut } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [quick, setQuick] = useState<QuickFilter>("none");
   const [sort, setSort] = useState<OrderSort>("agenda");
+  const [showDates, setShowDates] = useState(false);
+  const [receivedFrom, setReceivedFrom] = useState("");
+  const [receivedTo, setReceivedTo] = useState("");
+  const [inspectionFrom, setInspectionFrom] = useState("");
+  const [inspectionTo, setInspectionTo] = useState("");
+  const [dueUntil, setDueUntil] = useState("");
+
+  const dateFilters = useMemo(
+    () => ({
+      ...(receivedFrom ? { receivedFrom } : {}),
+      ...(receivedTo ? { receivedTo } : {}),
+      ...(inspectionFrom ? { inspectionFrom } : {}),
+      ...(inspectionTo ? { inspectionTo } : {}),
+      ...(dueUntil ? { dueUntil } : {}),
+    }),
+    [receivedFrom, receivedTo, inspectionFrom, inspectionTo, dueUntil]
+  );
+  const dateFilterCount = Object.keys(dateFilters).length;
 
   const counts = useMemo(() => dashboardCounts(orders), [orders]);
   const list = useMemo(
-    () => sortOrders(filterOrders(orders, { search, status, quick }), sort),
-    [orders, search, status, quick, sort]
+    () => sortOrders(filterOrders(orders, { search, status, quick, ...dateFilters }), sort),
+    [orders, search, status, quick, dateFilters, sort]
   );
-  const filtering = search.trim() !== "" || status !== "all" || quick !== "none";
+  const filtering =
+    search.trim() !== "" || status !== "all" || quick !== "none" || dateFilterCount > 0;
+
+  function clearDateFilters() {
+    setReceivedFrom("");
+    setReceivedTo("");
+    setInspectionFrom("");
+    setInspectionTo("");
+    setDueUntil("");
+  }
 
   const pickQuick = (q: QuickFilter) => {
     setQuick((prev) => (prev === q ? "none" : q));
@@ -58,7 +87,7 @@ export default function Dashboard() {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[15px] font-extrabold text-brand" aria-hidden>
               {(user.email ?? "?").slice(0, 1).toUpperCase()}
             </span>
-            <p className="min-w-0 flex-1 truncate text-[13.5px] font-bold">{user.email}</p>
+            <p className="min-w-0 flex-1 truncate text-[13.5px] font-bold">{displayName ?? user.email}</p>
             <button
               type="button"
               onClick={() => {
@@ -235,6 +264,84 @@ export default function Dashboard() {
               );
             })}
           </div>
+          <button
+            type="button"
+            onClick={() => setShowDates((v) => !v)}
+            aria-expanded={showDates}
+            className={`tnum mt-2 flex h-11 w-full items-center justify-between rounded-xl border-[1.5px] px-4 text-[14px] font-bold transition-all active:scale-[0.99] ${
+              dateFilterCount > 0
+                ? "border-brand bg-blue-50 text-blue-950"
+                : "border-slate-200 bg-white text-slate-600"
+            }`}
+          >
+            <span>📅 Filtrar por datas{dateFilterCount > 0 ? ` (${dateFilterCount})` : ""}</span>
+            <span aria-hidden>{showDates ? "▴" : "▾"}</span>
+          </button>
+          {showDates && (
+            <div className="mt-2 rounded-2xl border border-slate-200/80 bg-white p-4">
+              <div className="grid grid-cols-2 gap-2.5">
+                <label className="block">
+                  <span className="mb-1 block text-[13px] font-bold text-slate-600">Recebida de</span>
+                  <input
+                    type="date"
+                    value={receivedFrom}
+                    onChange={(e) => setReceivedFrom(e.target.value)}
+                    className="tnum h-[52px] w-full rounded-xl border-[1.5px] border-slate-300 bg-white px-3 text-[15px] focus:border-brand focus:outline-none"
+                    aria-label="Recebida de"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[13px] font-bold text-slate-600">Recebida até</span>
+                  <input
+                    type="date"
+                    value={receivedTo}
+                    onChange={(e) => setReceivedTo(e.target.value)}
+                    className="tnum h-[52px] w-full rounded-xl border-[1.5px] border-slate-300 bg-white px-3 text-[15px] focus:border-brand focus:outline-none"
+                    aria-label="Recebida até"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[13px] font-bold text-slate-600">Vistoria de</span>
+                  <input
+                    type="date"
+                    value={inspectionFrom}
+                    onChange={(e) => setInspectionFrom(e.target.value)}
+                    className="tnum h-[52px] w-full rounded-xl border-[1.5px] border-slate-300 bg-white px-3 text-[15px] focus:border-brand focus:outline-none"
+                    aria-label="Vistoria de"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[13px] font-bold text-slate-600">Vistoria até</span>
+                  <input
+                    type="date"
+                    value={inspectionTo}
+                    onChange={(e) => setInspectionTo(e.target.value)}
+                    className="tnum h-[52px] w-full rounded-xl border-[1.5px] border-slate-300 bg-white px-3 text-[15px] focus:border-brand focus:outline-none"
+                    aria-label="Vistoria até"
+                  />
+                </label>
+                <label className="col-span-2 block">
+                  <span className="mb-1 block text-[13px] font-bold text-slate-600">Conclusão até</span>
+                  <input
+                    type="date"
+                    value={dueUntil}
+                    onChange={(e) => setDueUntil(e.target.value)}
+                    className="tnum h-[52px] w-full rounded-xl border-[1.5px] border-slate-300 bg-white px-3 text-[15px] focus:border-brand focus:outline-none"
+                    aria-label="Conclusão até"
+                  />
+                </label>
+              </div>
+              {dateFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={clearDateFilters}
+                  className="mt-2.5 h-11 w-full rounded-xl border-[1.5px] border-slate-200 text-[14px] font-bold text-slate-600 active:bg-slate-50"
+                >
+                  Limpar datas
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="mt-3 flex flex-col gap-2.5" aria-live="polite">

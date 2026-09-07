@@ -1,0 +1,28 @@
+<!-- Subject: Confirme seu novo e-mail — Coleta Avaliação -->
+<!-- Supabase Auth → Email Templates → "Change email address": cole o HTML abaixo
+     (o assunto vai no campo Subject do painel). Não remova {{ .ConfirmationURL }}. -->
+<div style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <div style="background-color:#0f172a;border-radius:16px 16px 0 0;padding:24px;text-align:center;">
+      <p style="margin:0;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;">Vistoria técnica de imóveis</p>
+      <h1 style="margin:8px 0 0;font-size:22px;color:#ffffff;">Coleta Avaliação</h1>
+    </div>
+    <div style="background-color:#ffffff;border-radius:0 0 16px 16px;padding:32px 24px;">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#0f172a;">Confirme seu novo e-mail</h2>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.5;color:#475569;">
+        Clique no botão abaixo para confirmar <strong>{{ .NewEmail }}</strong> como seu novo e-mail:
+      </p>
+      <p style="margin:0 0 24px;text-align:center;">
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;background-color:#1d4ed8;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 32px;border-radius:12px;">Confirmar novo e-mail</a>
+      </p>
+      <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#94a3b8;">
+        Se o botão não funcionar, copie e cole este link no navegador:
+      </p>
+      <p style="margin:0 0 16px;font-size:12px;line-height:1.5;word-break:break-all;color:#64748b;">{{ .ConfirmationURL }}</p>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;">
+        Se você não pediu essa alteração, pode ignorar este e-mail.
+      </p>
+    </div>
+    <p style="margin:16px 0 0;font-size:12px;text-align:center;color:#94a3b8;">Coleta Avaliação — ordens de serviço e fichas de vistoria</p>
+  </div>
+</div>

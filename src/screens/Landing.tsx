@@ -46,6 +46,13 @@ export default function Landing() {
           >
             Entrar
           </button>
+          <button
+            type="button"
+            onClick={() => navigate("/cadastro")}
+            className="mt-2 h-[56px] w-full rounded-2xl border-[1.5px] border-slate-300 bg-white text-[16px] font-extrabold text-slate-700 active:bg-slate-50"
+          >
+            Criar conta
+          </button>
         </section>
 
         <section className="mt-6 grid gap-2.5" aria-label="Recursos">
