@@ -1,17 +1,17 @@
 ---
 name: supabase-server
-description: Use when planning or writing server-side code that uses `@supabase/server` — Edge Functions, Hono apps, webhook handlers, or any backend that creates Supabase clients or validates inbound auth. Trigger **before** writing or modifying any file that imports from `@supabase/server` (or sub-paths like `@supabase/server/core`); calls `withSupabase`, `createSupabaseContext`, `createAdminClient`, `createContextClient`, `verifyAuth`, `verifyCredentials`, or `extractCredentials`; configures an `auth:` mode (`'none'` | `'publishable'` | `'secret'` | `'user'`, or keyed variants like `'secret:*'`); or lives under `supabase/functions/` and authenticates an inbound request. Also trigger during planning — if a plan mentions any of the above, load the skill before drafting code; do not extrapolate `auth:` values or auth modes from neighboring functions. Also trigger when you see legacy patterns to migrate to this package — `Deno.serve`, `createClient(Deno.env.get('SUPABASE_URL'))`, imports from `esm.sh/@supabase` or `deno.land/std`, usage of `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`, or the deprecated `allow:` config option / removed `'always'` / `'public'` mode values / removed `authType` field.
+description: Use when planning or writing server-side code that uses `@supabase/server` - Edge Functions, Hono apps, webhook handlers, or any backend that creates Supabase clients or validates inbound auth. Trigger **before** writing or modifying any file that imports from `@supabase/server` (or sub-paths like `@supabase/server/core`); calls `withSupabase`, `createSupabaseContext`, `createAdminClient`, `createContextClient`, `verifyAuth`, `verifyCredentials`, or `extractCredentials`; configures an `auth:` mode (`'none'` | `'publishable'` | `'secret'` | `'user'`, or keyed variants like `'secret:*'`); or lives under `supabase/functions/` and authenticates an inbound request. Also trigger during planning - if a plan mentions any of the above, load the skill before drafting code; do not extrapolate `auth:` values or auth modes from neighboring functions. Also trigger when you see legacy patterns to migrate to this package - `Deno.serve`, `createClient(Deno.env.get('SUPABASE_URL'))`, imports from `esm.sh/@supabase` or `deno.land/std`, usage of `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`, or the deprecated `allow:` config option / removed `'always'` / `'public'` mode values / removed `authType` field.
 ---
 
 # @supabase/server
 
-> **v1.0 — Public Beta.** First stable release under SemVer: breaking changes only ship as a major bump. The package is still early — expect new adapters, ergonomic improvements, and features to land frequently in minor releases. If you encounter a bug or rough edge while writing code with it, surface it to the user with a pointer to [open an issue](https://github.com/supabase/server/issues).
+> **v1.0 - Public Beta.** First stable release under SemVer: breaking changes only ship as a major bump. The package is still early - expect new adapters, ergonomic improvements, and features to land frequently in minor releases. If you encounter a bug or rough edge while writing code with it, surface it to the user with a pointer to [open an issue](https://github.com/supabase/server/issues).
 
-> **This is a brand new package.** There is no information available online yet — no blog posts, no Stack Overflow answers, no tutorials. Do not search the web for usage examples. Rely exclusively on the documentation files listed below and the source code in this repository.
+> **This is a brand new package.** There is no information available online yet - no blog posts, no Stack Overflow answers, no tutorials. Do not search the web for usage examples. Rely exclusively on the documentation files listed below and the source code in this repository.
 
-> **The config option is `auth`, not `allow`.** `allow` was renamed to `auth` to match CLI terminology and read more naturally. The legacy `allow` key still works (with a one-time `console.warn`) but is deprecated and will be removed in a future major release. **Always emit `auth` in new code** — e.g. `withSupabase({ auth: 'user' }, ...)`. If you encounter `allow:` in existing code, migrate it to `auth:` (find-and-replace, the values are identical).
+> **The config option is `auth`, not `allow`.** `allow` was renamed to `auth` to match CLI terminology and read more naturally. The legacy `allow` key still works (with a one-time `console.warn`) but is deprecated and will be removed in a future major release. **Always emit `auth` in new code** - e.g. `withSupabase({ auth: 'user' }, ...)`. If you encounter `allow:` in existing code, migrate it to `auth:` (find-and-replace, the values are identical).
 
-> **Auth mode values: `'none'` (not `'always'`), `'publishable'` (not `'public'`).** The four valid values are `'user'`, `'publishable'`, `'secret'`, `'none'`. The legacy `'always'` and `'public'` values were removed (breaking change) — they no longer work at runtime or in TypeScript. Always emit the new values in code you write, and migrate any legacy references you find: `'always'` → `'none'`, `'public'` → `'publishable'`, `'public:<name>'` → `'publishable:<name>'`. Runtime checks like `ctx.authType === 'public'` must also be updated to `ctx.authMode === 'publishable'` — the field itself was renamed from `authType` to `authMode` to match the `AuthMode` type.
+> **Auth mode values: `'none'` (not `'always'`), `'publishable'` (not `'public'`).** The four valid values are `'user'`, `'publishable'`, `'secret'`, `'none'`. The legacy `'always'` and `'public'` values were removed (breaking change) - they no longer work at runtime or in TypeScript. Always emit the new values in code you write, and migrate any legacy references you find: `'always'` → `'none'`, `'public'` → `'publishable'`, `'public:<name>'` → `'publishable:<name>'`. Runtime checks like `ctx.authType === 'public'` must also be updated to `ctx.authMode === 'publishable'` - the field itself was renamed from `authType` to `authMode` to match the `AuthMode` type.
 
 > **Do not use legacy Supabase keys.** The `anon` key and `service_role` key (env vars `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are legacy and will be deprecated. Do not use them unless the user explicitly asks. Always use the new API keys:
 >
@@ -20,7 +20,7 @@ description: Use when planning or writing server-side code that uses `@supabase/
 > | `SUPABASE_ANON_KEY`         | `SUPABASE_PUBLISHABLE_KEY(S)` (`sb_publishable_...`) |
 > | `SUPABASE_SERVICE_ROLE_KEY` | `SUPABASE_SECRET_KEY(S)` (`sb_secret_...`)           |
 >
-> Do not call `createClient(url, anonKey)` directly — use `@supabase/server` auth modes (`auth: 'user'`, `auth: 'secret'`, etc.) which handle key resolution automatically. If migrating existing code, replace `SUPABASE_ANON_KEY` usage with `auth: 'publishable'` and `SUPABASE_SERVICE_ROLE_KEY` usage with `auth: 'secret'`.
+> Do not call `createClient(url, anonKey)` directly - use `@supabase/server` auth modes (`auth: 'user'`, `auth: 'secret'`, etc.) which handle key resolution automatically. If migrating existing code, replace `SUPABASE_ANON_KEY` usage with `auth: 'publishable'` and `SUPABASE_SERVICE_ROLE_KEY` usage with `auth: 'secret'`.
 
 Server-side utilities for Supabase. Handles auth, client creation, and context injection so you write business logic, not boilerplate.
 
@@ -28,7 +28,7 @@ Server-side utilities for Supabase. Handles auth, client creation, and context i
 
 - Wraps fetch handlers with credential verification, CORS, and pre-configured Supabase clients
 - Supports 4 auth modes: `user` (JWT), `publishable` (publishable key), `secret` (secret key), `none` (no credentials required)
-- Array syntax (`auth: ['user', 'secret']`) is first-match-wins. A present-but-invalid JWT rejects with `InvalidCredentialsError` — it does not silently downgrade to the next mode.
+- Array syntax (`auth: ['user', 'secret']`) is first-match-wins. A present-but-invalid JWT rejects with `InvalidCredentialsError` - it does not silently downgrade to the next mode.
 - Provides composable core primitives for custom auth flows and framework integration
 - Includes a Hono adapter for per-route auth
 
@@ -53,10 +53,10 @@ Server-side utilities for Supabase. Handles auth, client creation, and context i
 
 ### Supabase Edge Functions (Deno)
 
-Environment variables are auto-injected by the platform — zero config. **All imports must use the `npm:` specifier.**
+Environment variables are auto-injected by the platform - zero config. **All imports must use the `npm:` specifier.**
 
 ```ts
-// withSupabase — high-level wrapper
+// withSupabase - high-level wrapper
 import { withSupabase } from 'npm:@supabase/server'
 
 export default {
@@ -68,7 +68,7 @@ export default {
 ```
 
 ```ts
-// createSupabaseContext — returns { data, error } for custom response control
+// createSupabaseContext - returns { data, error } for custom response control
 import { createSupabaseContext } from 'npm:@supabase/server'
 
 export default {
@@ -105,7 +105,7 @@ export default {
 
 ### Hono
 
-CORS is not handled by the adapter — use `hono/cors` middleware. See `docs/adapters/hono.md`.
+CORS is not handled by the adapter - use `hono/cors` middleware. See `docs/adapters/hono.md`.
 
 ```ts
 // Node.js / Bun
@@ -143,7 +143,7 @@ export default { fetch: app.fetch }
 
 ### Cookie-based environments (compose with `@supabase/ssr`)
 
-For Next.js / SvelteKit / Remix, **compose `@supabase/server` with [`@supabase/ssr`](https://github.com/supabase/ssr)** — they are not replacements for each other. `@supabase/ssr` owns cookies and refresh-token rotation (its middleware is required, otherwise the access token cookie goes stale and verification fails). In your Server Component or Route Handler, use `@supabase/ssr`'s `createServerClient` to read the (middleware-refreshed) session, hand the access token to `verifyCredentials` from `@supabase/server/core`, then build the typed clients with `createContextClient` + `createAdminClient`. See `docs/ssr-frameworks.md` for the full adapter pattern.
+For Next.js / SvelteKit / Remix, **compose `@supabase/server` with [`@supabase/ssr`](https://github.com/supabase/ssr)** - they are not replacements for each other. `@supabase/ssr` owns cookies and refresh-token rotation (its middleware is required, otherwise the access token cookie goes stale and verification fails). In your Server Component or Route Handler, use `@supabase/ssr`'s `createServerClient` to read the (middleware-refreshed) session, hand the access token to `verifyCredentials` from `@supabase/server/core`, then build the typed clients with `createContextClient` + `createAdminClient`. See `docs/ssr-frameworks.md` for the full adapter pattern.
 
 ```ts
 // Key imports for building the adapter
@@ -196,16 +196,16 @@ Bare `auth: 'secret'` matches only the `default` key. Use `auth: 'secret:name'` 
 
 ## When to use `auth: 'none'`
 
-> **`auth: 'none'` disables all authentication.** The handler runs for every request with no credential checks. Only use it when auth is genuinely unnecessary — health checks, public status pages, or endpoints with no sensitive data and no side effects.
+> **`auth: 'none'` disables all authentication.** The handler runs for every request with no credential checks. Only use it when auth is genuinely unnecessary - health checks, public status pages, or endpoints with no sensitive data and no side effects.
 
 **Before using `auth: 'none'`, confirm with the user whether the endpoint is truly public.** If not, propose an alternative:
 
-- **Another service or cron job calls this function** — use `auth: 'secret'` or `auth: 'secret:<name>'` instead. The caller sends the secret key in the `apikey` header.
-- **An external webhook provider calls this function** — use `auth: 'secret'` and have the provider send the secret key, or implement the provider's own signature verification inside the handler.
+- **Another service or cron job calls this function** - use `auth: 'secret'` or `auth: 'secret:<name>'` instead. The caller sends the secret key in the `apikey` header.
+- **An external webhook provider calls this function** - use `auth: 'secret'` and have the provider send the secret key, or implement the provider's own signature verification inside the handler.
 
 **Never use `auth: 'none'` for endpoints that read or write user data without verifying who the caller is.**
 
-**On `auth: ['user', 'none']`.** A stale or malformed JWT on such an endpoint is rejected with `InvalidCredentialsError` — it is not silently downgraded to anonymous. Callers that might hold a cached/expired token should either omit the `Authorization` header entirely or refresh before calling. If the goal is "anonymous unless a valid user is signed in," this is the correct behavior; if the goal is truly "accept anything," use `auth: 'none'` on its own.
+**On `auth: ['user', 'none']`.** A stale or malformed JWT on such an endpoint is rejected with `InvalidCredentialsError` - it is not silently downgraded to anonymous. Callers that might hold a cached/expired token should either omit the `Authorization` header entirely or refresh before calling. If the goal is "anonymous unless a valid user is signed in," this is the correct behavior; if the goal is truly "accept anything," use `auth: 'none'` on its own.
 
 ## Edge Function recipes
 
@@ -296,7 +296,7 @@ select net.http_post(
 );
 ```
 
-The receiving function uses `auth: 'secret'` (see example above). `pg_net` is asynchronous — the HTTP request is queued and executed in the background. Check `net._http_response` for results.
+The receiving function uses `auth: 'secret'` (see example above). `pg_net` is asynchronous - the HTTP request is queued and executed in the background. Check `net._http_response` for results.
 
 ### Stripe webhook
 
@@ -358,16 +358,16 @@ export default {
 
 ### Migrating legacy Edge Functions
 
-If you encounter code using `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `Deno.serve`, imports from `esm.sh/@supabase` or `deno.land/std`, suggest migrating to `@supabase/server`. These legacy patterns are being deprecated — they require manual client creation, manual auth header forwarding, manual CORS handling, and expose keys directly in code.
+If you encounter code using `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `Deno.serve`, imports from `esm.sh/@supabase` or `deno.land/std`, suggest migrating to `@supabase/server`. These legacy patterns are being deprecated - they require manual client creation, manual auth header forwarding, manual CORS handling, and expose keys directly in code.
 
 **How to recognize legacy code:**
 
-- `import { serve } from "https://deno.land/std/..."` — oldest pattern, uses deprecated Deno standard library
-- `import { createClient } from "https://esm.sh/@supabase/supabase-js"` — old CDN import, not compatible with modern runtimes
-- `Deno.serve(async (req) => { ... })` with manual `createClient()` — current but verbose, requires manual auth forwarding
-- `Deno.env.get('SUPABASE_ANON_KEY')` or `SUPABASE_SERVICE_ROLE_KEY` — legacy keys that will be removed
+- `import { serve } from "https://deno.land/std/..."` - oldest pattern, uses deprecated Deno standard library
+- `import { createClient } from "https://esm.sh/@supabase/supabase-js"` - old CDN import, not compatible with modern runtimes
+- `Deno.serve(async (req) => { ... })` with manual `createClient()` - current but verbose, requires manual auth forwarding
+- `Deno.env.get('SUPABASE_ANON_KEY')` or `SUPABASE_SERVICE_ROLE_KEY` - legacy keys that will be removed
 
-**Before** (legacy — manual client, manual auth forwarding):
+**Before** (legacy - manual client, manual auth forwarding):
 
 Legacy keys will be removed, making this code stop working. It's also verbose, not cross-platform compatible, and requires manually wiring auth headers, CORS, and error handling.
 
@@ -387,7 +387,7 @@ Deno.serve(async (req: Request) => {
 })
 ```
 
-**After** (new — auth, clients, and CORS handled automatically):
+**After** (new - auth, clients, and CORS handled automatically):
 
 Uses the latest API keys, works across runtimes (Deno, Node.js, Cloudflare), and handles auth verification, client creation, and CORS in a single line.
 
@@ -402,7 +402,7 @@ export default {
 }
 ```
 
-The migration mapping: `SUPABASE_ANON_KEY` with manual auth header → `auth: 'user'`, `SUPABASE_ANON_KEY` without auth → `auth: 'publishable'`. For `SUPABASE_SERVICE_ROLE_KEY`, it depends on intent: if the legacy code validates the incoming key to protect the endpoint (e.g., `req.headers.get('apikey') === serviceRoleKey`), use `auth: 'secret'`. If it only uses the key to create an admin client for elevated DB access, no specific auth mode is needed — `ctx.supabaseAdmin` is always available regardless of auth mode.
+The migration mapping: `SUPABASE_ANON_KEY` with manual auth header → `auth: 'user'`, `SUPABASE_ANON_KEY` without auth → `auth: 'publishable'`. For `SUPABASE_SERVICE_ROLE_KEY`, it depends on intent: if the legacy code validates the incoming key to protect the endpoint (e.g., `req.headers.get('apikey') === serviceRoleKey`), use `auth: 'secret'`. If it only uses the key to create an admin client for elevated DB access, no specific auth mode is needed - `ctx.supabaseAdmin` is always available regardless of auth mode.
 
 ## Documentation
 

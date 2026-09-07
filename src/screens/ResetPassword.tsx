@@ -1,5 +1,5 @@
 /**
- * Redefinição de senha (/reset-password) — rota pública, acessível durante
+ * Redefinição de senha (/reset-password) - rota pública, acessível durante
  * o fluxo de recuperação mesmo sem sessão normal.
  *
  * Compatível com HashRouter: o Supabase (PKCE) anexa `?code=...` antes ou

@@ -1,11 +1,11 @@
 -- ============================================================================
--- 00005_route_geocoding — cache de coordenadas por OS (Otimizador de Rotas)
+-- 00005_route_geocoding - cache de coordenadas por OS (Otimizador de Rotas)
 -- ============================================================================
 -- Decisão: o cache PRIMÁRIO é o geocache em localStorage (chave = endereço
 -- normalizado), que funciona nos dois backends (Supabase e modo local) sem
 -- tráfego extra. Estas colunas são o cache SERVIDOR: permitem persistir o
 -- resultado da geocodificação (Nominatim) na OS e nunca re-geocodificar uma
--- OS já localizada — mesmo em outro aparelho.
+-- OS já localizada - mesmo em outro aparelho.
 --
 -- RLS: colunas da tabela orders, já cobertas pela policy owner_all_orders.
 -- Nulo = ainda não geocodificada. O app preenche via OrderPatch futuro;

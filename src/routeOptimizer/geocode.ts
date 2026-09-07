@@ -1,8 +1,8 @@
 /**
- * Provedor de geocodificação — interface desacoplada do algoritmo.
+ * Provedor de geocodificação - interface desacoplada do algoritmo.
  * O restante do app depende só de `GeocodeProvider.geocode()`; trocar o
  * serviço (ex.: Photon, serviço próprio) = nova implementação, sem tocar na otimização.
- * Hoje: Nominatim (OSM) — sem chave, sem custo. Política de uso: 1 req/s
+ * Hoje: Nominatim (OSM) - sem chave, sem custo. Política de uso: 1 req/s
  * (throttle), timeout e erro tipado. `null` = endereço não localizado.
  */
 import { isValidPoint } from "./geo";

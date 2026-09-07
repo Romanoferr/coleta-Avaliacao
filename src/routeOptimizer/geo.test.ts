@@ -13,7 +13,7 @@ describe("geo", () => {
   });
 
   it("addressKey normaliza caixa, acento e pontuação", () => {
-    expect(addressKey("Rua São João, 100 — Centro")).toBe(addressKey("rua sao joao 100 centro"));
+    expect(addressKey("Rua São João, 100 - Centro")).toBe(addressKey("rua sao joao 100 centro"));
   });
 
   it("isValidPoint rejeita nulo e 0,0", () => {

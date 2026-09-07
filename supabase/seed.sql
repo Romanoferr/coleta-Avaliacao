@@ -1,5 +1,5 @@
 -- ============================================================================
--- seed.sql — dados 100% FICTÍCIOS para desenvolvimento manual.
+-- seed.sql - dados 100% FICTÍCIOS para desenvolvimento manual.
 -- Roda via `supabase db reset` (local). Nunca usar em produção.
 -- Atribui tudo ao usuário mais antigo (auth.users); sem usuário, avisa e
 -- não insere nada (owner_id é obrigatório).
@@ -19,15 +19,15 @@ BEGIN
   VALUES
     ('11111111-1111-4111-8111-111111111111', dev_id, '1001', 'Banco Exemplo', CURRENT_DATE - 6, CURRENT_DATE, '09:30', CURRENT_DATE + 8,
      '{"street": "Rua das Flores", "number": "123", "district": "Centro", "city": "Londrina", "state": "PR"}',
-     'Maria Silva', '(43) 99999-0001', 'Seed fictício — OS com ficha', 'inspected',
+     'Maria Silva', '(43) 99999-0001', 'Seed fictício - OS com ficha', 'inspected',
      '[{"from": "received", "to": "received", "at": "2026-09-01T10:00:00Z", "note": "OS criada"}, {"from": "received", "to": "scheduled", "at": "2026-09-02T10:00:00Z"}, {"from": "scheduled", "to": "inspected", "at": "2026-09-03T10:00:00Z"}]'),
     ('22222222-2222-4222-8222-222222222222', dev_id, '1002', 'Cliente Fictício', CURRENT_DATE - 1, CURRENT_DATE + 1, '14:00', CURRENT_DATE + 10,
      '{"street": "Av. Paraná", "number": "456", "city": "Londrina", "state": "PR"}',
-     'João Souza', '(43) 99999-0002', 'Seed fictício — OS sem ficha', 'scheduled',
+     'João Souza', '(43) 99999-0002', 'Seed fictício - OS sem ficha', 'scheduled',
      '[{"from": "received", "to": "received", "at": "2026-09-06T10:00:00Z", "note": "OS criada"}, {"from": "received", "to": "scheduled", "at": "2026-09-06T11:00:00Z"}]'),
     ('33333333-3333-4333-8333-333333333333', dev_id, '1003', 'Banco Exemplo', CURRENT_DATE - 20, CURRENT_DATE - 5, '10:00', CURRENT_DATE - 2,
      '{"raw": "Sítio próximo à rodovia, km 12"}',
-     NULL, NULL, 'Seed fictício — OS atrasada', 'received',
+     NULL, NULL, 'Seed fictício - OS atrasada', 'received',
      '[{"from": "received", "to": "received", "at": "2026-08-20T10:00:00Z", "note": "OS criada"}]')
   ON CONFLICT (id) DO NOTHING;
 

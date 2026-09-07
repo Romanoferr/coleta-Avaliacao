@@ -101,7 +101,7 @@ export default function Dashboard() {
         ) : null}
         {stale ? (
           <p className="mt-4 rounded-2xl border-[1.5px] border-amber-300 bg-amber-50 p-4 text-[13.5px] font-bold text-amber-900">
-            Sem conexão — mostrando a última cópia salva. Edições desativadas até reconectar.{" "}
+            Sem conexão - mostrando a última cópia salva. Edições desativadas até reconectar.{" "}
             <button type="button" onClick={() => void reload()} className="underline underline-offset-2">
               Tentar de novo
             </button>

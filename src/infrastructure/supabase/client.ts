@@ -1,6 +1,6 @@
 /**
  * ÚNICA instância do client Supabase no projeto.
- * Nenhum outro módulo chama `createClient` — importar daqui.
+ * Nenhum outro módulo chama `createClient` - importar daqui.
  * Sem env configurado, o app roda em modo local (ver state/store).
  */
 import { createClient } from "@supabase/supabase-js";
@@ -22,7 +22,7 @@ export function getSupabase(): SupabaseClient<Database> | null {
   if (!cached) {
     cached = createClient<Database>(url as string, anonKey as string, {
       // Sessão persistida pelo mecanismo padrão do Supabase (localStorage
-      // gerenciado pelo próprio SDK — o app nunca toca em tokens).
+      // gerenciado pelo próprio SDK - o app nunca toca em tokens).
       auth: { persistSession: true, autoRefreshToken: true },
     });
   }
@@ -38,7 +38,7 @@ export function getAppUrl(): string {
 }
 /**
  * Exige backend configurado. Telas chamam repositories (que já tratam),
- * nunca isto diretamente — exportado só para diagnóstico/teste.
+ * nunca isto diretamente - exportado só para diagnóstico/teste.
  */
 export function requireSupabase(): SupabaseClient<Database> {
   const client = getSupabase();

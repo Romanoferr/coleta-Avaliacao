@@ -1,10 +1,10 @@
 /**
- * Heurística TSP local (nearest-neighbor + 2-opt) — fallback determinístico
+ * Heurística TSP local (nearest-neighbor + 2-opt) - fallback determinístico
  * e offline. NÃO é a estratégia primária: o controlador tenta primeiro o
  * OSRM /trip (malha viária real); esta heurística assume quando a rede falha
  * ou o volume excede o limite do serviço.
  *
- * Complexidade: O(n²) construção + O(k·n²) melhoria — adequado a dezenas de OSs.
+ * Complexidade: O(n²) construção + O(k·n²) melhoria - adequado a dezenas de OSs.
  */
 import type { GeoPoint } from "./types";
 import { estimateMinutes, haversineKm } from "./geo";

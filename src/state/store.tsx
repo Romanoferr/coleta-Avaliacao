@@ -133,7 +133,7 @@ function clearDraftCache(scope: CacheScope, inspectionId: string): void {
 
 /**
  * Chaves de cache pré-escopo (snapshot e drafts sem usuário) eram
- * compartilhadas entre logins no mesmo navegador — por isso saem de cena:
+ * compartilhadas entre logins no mesmo navegador - por isso saem de cena:
  * - modo local (dono único): renomeia para o escopo "local" (preserva trabalho);
  * - modo nuvem: apaga (sem dono atribuível; servidor é a verdade).
  * Roda uma vez; melhor esforço.
@@ -344,7 +344,7 @@ export function DbProvider({ children }: { children: ReactNode }) {
       migrateUnscopedCache(principal);
     }
     // Troca de usuário (inclusive logout): descarta tudo do principal anterior
-    // ANTES de buscar — RLS filtra o servidor, mas a memória é nossa obrigação.
+    // ANTES de buscar - RLS filtra o servidor, mas a memória é nossa obrigação.
     if (prevPrincipal.current !== undefined && prevPrincipal.current !== principal) {
       setOrders([]);
       setRefs([]);

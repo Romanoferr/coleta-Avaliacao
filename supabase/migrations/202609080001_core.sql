@@ -1,5 +1,5 @@
 -- ============================================================================
--- 00001_core — modelo de domínio: orders, inspections, documents
+-- 00001_core - modelo de domínio: orders, inspections, documents
 -- Convenção: snake_case, UUID como PK técnica, timestamps com trigger.
 -- Decisões (detalhes em docs/SUPABASE.md):
 --   - orders.number (texto comercial) separado de orders.id (uuid técnico).
@@ -9,7 +9,7 @@
 --   - Endereço e dados da ficha como JSONB (forma evolui sem migration por campo;
 --     colunas relacionais para tudo que é filtrado/ordenado/relacionado).
 --   - FKs com ON DELETE RESTRICT: exclusão é lógica (deleted_at); hard delete
---     exige remoção explícita dos filhos — nada some por acidente.
+--     exige remoção explícita dos filhos - nada some por acidente.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -46,7 +46,7 @@ END;
 $$;
 
 -- ----------------------------------------------------------------------------
--- orders — entidade central
+-- orders - entidade central
 -- ----------------------------------------------------------------------------
 CREATE TABLE orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -71,8 +71,8 @@ CREATE TABLE orders (
 );
 
 -- Unicidade comercial: mesmo número pode ser reutilizado após soft-delete,
--- mas nunca em duas OS vivas (case-insensitive). É esta constraint — e não o
--- frontend — que impede duplicação em race conditions.
+-- mas nunca em duas OS vivas (case-insensitive). É esta constraint - e não o
+-- frontend - que impede duplicação em race conditions.
 CREATE UNIQUE INDEX orders_number_unique_active
   ON orders (lower(number))
   WHERE deleted_at IS NULL;
@@ -90,7 +90,7 @@ CREATE TRIGGER orders_set_updated_at
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ----------------------------------------------------------------------------
--- inspections — 0..1 por OS (UNIQUE + app pré-checa; banco decide em corrida)
+-- inspections - 0..1 por OS (UNIQUE + app pré-checa; banco decide em corrida)
 -- ----------------------------------------------------------------------------
 CREATE TABLE inspections (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -117,7 +117,7 @@ CREATE TRIGGER inspections_set_updated_at
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ----------------------------------------------------------------------------
--- documents — 0..N por OS (somente metadados + REFERÊNCIAS; bytes no R2).
+-- documents - 0..N por OS (somente metadados + REFERÊNCIAS; bytes no R2).
 -- Convenção de chave do objeto (provider-agnóstica, usada no R2):
 --   documents/{order_id}/{document_id}/{filename}
 -- Upload futuro via Cloudflare Worker (URLs pré-assinadas); o app grava

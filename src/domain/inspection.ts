@@ -1,7 +1,7 @@
 /**
  * Ficha de vistoria (Inspection).
  * Recurso pertencente a UMA ServiceOrder (orderId imutável).
- * O formato de `data` é o mesmo do Evaluation atual — nenhuma resposta
+ * O formato de `data` é o mesmo do Evaluation atual - nenhuma resposta
  * existente precisa ser transformada.
  */
 import type { EvaluationData, PropertyType } from "../form-engine/types";

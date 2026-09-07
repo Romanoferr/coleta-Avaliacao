@@ -1,5 +1,5 @@
 /**
- * "Esqueci minha senha" — envia link de recuperação via Supabase Auth
+ * "Esqueci minha senha" - envia link de recuperação via Supabase Auth
  * (resetPasswordForEmail). Sem tokens próprios, sem tabela própria.
  * Mensagem neutra no sucesso para não enumerar usuários.
  */

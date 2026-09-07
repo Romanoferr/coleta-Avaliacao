@@ -1,5 +1,5 @@
 /**
- * Campos reutilizáveis — linguagem única (docs/UX-FOCUS.md §4).
+ * Campos reutilizáveis - linguagem única (docs/UX-FOCUS.md §4).
  * Alvos ≥48px, selecionado = borda + fundo + ícone (nunca só cor).
  */
 import type { FormField } from "../form-engine/types";
@@ -45,7 +45,7 @@ function Label({ field }: { field: FormField }) {
   );
 }
 
-/** Linha compacta: rótulo à esquerda, stepper à direita — economiza rolagem. */
+/** Linha compacta: rótulo à esquerda, stepper à direita - economiza rolagem. */
 function CounterRow({ field, value, onChange }: Props) {
   const num = typeof value === "number" ? value : Number(value ?? 0) || 0;
   const dec = () => onChange(field.id, Math.max(field.min ?? 0, num - 1));

@@ -1,5 +1,5 @@
 /**
- * Documento relacionado à OS — SOMENTE metadados + referência ao arquivo.
+ * Documento relacionado à OS - SOMENTE metadados + referência ao arquivo.
  * Os bytes vivem no Cloudflare R2 (decisão de arquitetura); o Supabase
  * guarda provider + chave (+ URL pública quando houver). O acesso aos bytes
  * passará por URLs do R2 (futuro Worker com URLs pré-assinadas).

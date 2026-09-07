@@ -1,5 +1,5 @@
 /**
- * Integração com Google Maps — APENAS navegação (URL pública, sem chave).
+ * Integração com Google Maps - APENAS navegação (URL pública, sem chave).
  * A otimização acontece no OSRM/heurística; esta URL preserva exatamente a
  * ordem calculada (origem → waypoints → destino). Limite documentado: o
  * Google aceita bem até ~10 pontos na URL (ver segmentos abaixo).
@@ -55,7 +55,7 @@ export function googleMapsDirectionsUrl(input: MapsRouteInput): { url: string; t
 /**
  * Navegação por segmentos: divide a sequência completa de pontos em trechos
  * de no máximo MAPS_URL_LIMIT pontos, com sobreposição (o fim de um trecho
- * é o início do próximo). A ordem otimizada é preservada integralmente —
+ * é o início do próximo). A ordem otimizada é preservada integralmente -
  * só muda como ela é aberta no Maps.
  */
 export interface RouteSegment {

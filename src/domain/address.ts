@@ -33,7 +33,7 @@ export function formatAddress(a: Address | null | undefined): string {
     clean(a.district),
     [clean(a.city), clean(a.state)].filter(Boolean).join("/"),
   ].filter(Boolean);
-  if (parts.length > 0) return parts.join(" — ");
+  if (parts.length > 0) return parts.join(" - ");
   return clean(a.raw);
 }
 

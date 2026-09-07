@@ -30,7 +30,7 @@ da máquina no navegador do celular.
 
 1. Crie o projeto em https://supabase.com/dashboard → **New project**.
 2. Copie o env e preencha com a URL e a chave pública
-   (Project Settings → Data API — **somente** a chave pública/anon):
+   (Project Settings → Data API - **somente** a chave pública/anon):
    ```bash
    copy .env.example .env   # Windows
    cp .env.example .env     # macOS/Linux

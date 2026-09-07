@@ -1,5 +1,5 @@
 /**
- * Cliente OSRM (OpenStreetMap Routing Machine) — sem chave, sem custo.
+ * Cliente OSRM (OpenStreetMap Routing Machine) - sem chave, sem custo.
  * - /trip: resolve o TSP na malha viária (ordem otimizada + distância/tempo).
  * - /route: mede distância/tempo de uma ordem já definida.
  * Base pública de demonstração; sobrescrevível via VITE_OSRM_BASE_URL
@@ -33,7 +33,7 @@ export function tripUrl(base: string, req: TripRequest): string {
     steps: "false",
   });
   // source=first trava a origem. Circuito (roundtrip): o retorno ao início é
-  // implícito — enviar `destination=first` aqui faz o OSRM responder HTTP 400.
+  // implícito - enviar `destination=first` aqui faz o OSRM responder HTTP 400.
   params.set("source", "first");
   if (!req.roundTrip && req.endFixed) params.set("destination", "last");
   else if (!req.roundTrip) params.set("destination", "any");

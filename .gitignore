@@ -40,7 +40,7 @@ vite.config.*.timestamp-*
 # Ferramentas de agentes locais (config por máquina, não versionar)
 .config/
 
-# Supabase CLI — estado local (branches, containers). Migrations/seed ficam.
+# Supabase CLI - estado local (branches, containers). Migrations/seed ficam.
 supabase/.branches/
 supabase/.temp/
 

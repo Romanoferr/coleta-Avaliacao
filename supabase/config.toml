@@ -1,4 +1,4 @@
-# Supabase CLI — configuração mínima do projeto.
+# Supabase CLI - configuração mínima do projeto.
 # Uso: `supabase link --project-ref <ref>` (uma vez) e depois
 # `supabase db push` / `supabase db reset`. Detalhes em docs/SUPABASE.md.
 # Nenhum secret é guardado aqui.

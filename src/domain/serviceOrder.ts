@@ -1,5 +1,5 @@
 /**
- * Ordem de Serviço — entidade central do produto.
+ * Ordem de Serviço - entidade central do produto.
  * Representa o serviço contratado/recebido. NÃO contém dados técnicos
  * da vistoria (esses vivem em Inspection) nem bytes de arquivos (Document).
  */
@@ -46,7 +46,7 @@ export interface StatusEvent {
 /**
  * Coordenadas persistidas da OS (cache servidor de geocodificação).
  * Nulo = ainda não geocodificada. `geocodedAddress` guarda a chave do
- * endereço que gerou a coordenada — se o endereço mudar, a coordenada é
+ * endereço que gerou a coordenada - se o endereço mudar, a coordenada é
  * considerada obsoleta e a OS é geocodificada de novo.
  */
 export interface GeoCoordinates {

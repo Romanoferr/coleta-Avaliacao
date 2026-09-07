@@ -1,13 +1,13 @@
-# Supabase — guia operacional
+# Supabase - guia operacional
 
 Fonte de verdade do banco: `supabase/migrations/`. Nada estrutural é criado
-no painel — tudo versionado e reproduzível.
+no painel - tudo versionado e reproduzível.
 
 ## 1. Criar o projeto
 
 1. Acesse https://supabase.com/dashboard → **New project**.
 2. Nome: `coleta-avaliacao` (qualquer). Anote o **Database password**
-   (só para emergências/CLI local — NUNCA vai para o frontend).
+   (só para emergências/CLI local - NUNCA vai para o frontend).
 3. Aguarde o provisionamento (~2 min).
 
 ## 2 e 3. Obter URL e chave pública
@@ -28,11 +28,11 @@ cp .env.example .env.local      # macOS/Linux
 ```
 
 Preencha as duas variáveis. Sem elas, o app roda em **modo local**
-(localStorage) — mesmos fluxos, rodapé "Salvo neste aparelho".
+(localStorage) - mesmos fluxos, rodapé "Salvo neste aparelho".
 
 ## 5. Executar migrations
 
-Opção A — **CLI** (recomendado, reproduzível):
+Opção A - **CLI** (recomendado, reproduzível):
 
 ```bash
 npm i -g supabase                 # uma vez
@@ -40,7 +40,7 @@ supabase link --project-ref <ref> # <ref> = trecho da URL: https://<ref>.supabas
 npm run db:push                    # aplica supabase/migrations em ordem
 ```
 
-Opção B — **painel** (sem CLI): SQL Editor → New query → cole o conteúdo de
+Opção B - **painel** (sem CLI): SQL Editor → New query → cole o conteúdo de
 cada arquivo de `supabase/migrations/` **em ordem** → Run. (Funciona, mas prefira a CLI.)
 
 Verificação: Table Editor deve mostrar `orders`, `inspections`, `documents`;
@@ -64,9 +64,9 @@ Dashboard (limpa OSs/drafts do usuário anterior da memória).
 3. Opcional (dev): **Authentication → Users → Add user → Create new user**
    com **Auto Confirm user** para testes sem confirmação.
 4. O nome informado no cadastro vai para `user_metadata.display_name` do
-   Auth — não há tabela de senhas nem perfil paralelo no banco da aplicação.
+   Auth - não há tabela de senhas nem perfil paralelo no banco da aplicação.
 
-## 5c. Backfill de owner (registros pré-auth — NÃO apaga nada)
+## 5c. Backfill de owner (registros pré-auth - NÃO apaga nada)
 
 Linhas criadas antes do Auth têm `owner_id` NULL e ficam invisíveis até
 o backfill. Para cada usuário de dev (UID em Authentication → Users):
@@ -77,7 +77,7 @@ UPDATE inspections SET owner_id = '<UID>' WHERE owner_id IS NULL;
 UPDATE documents SET owner_id = '<UID>' WHERE owner_id IS NULL;
 ```
 
-Só então rode a migration `202609080004_owner_not_null.sql` — ela falha de
+Só então rode a migration `202609080004_owner_not_null.sql` - ela falha de
 propósito se ainda houver órfãos. Ordem completa no banco existente:
 `00003` → backfill → `00004`.
 
@@ -122,7 +122,7 @@ select policyname from pg_policies where policyname like 'tmp\_dev\_%';
   owner_id) WITH CHECK (auth.uid() = owner_id)`: SELECT/UPDATE/DELETE só nas
   próprias linhas; INSERT só com o próprio id. `anon` sem policy: zero acesso.
 - Trigger `enforce_same_owner()`: ficha/documento sempre do mesmo dono da
-  OS (tolera pai com `owner_id` NULL — legado pré-backfill).
+  OS (tolera pai com `owner_id` NULL - legado pré-backfill).
 - Frontend nunca escolhe dono: repositories injetam `owner_id` a partir de
   `auth.getUser()` (sessão validada no servidor); a policy valida de novo.
 
@@ -132,8 +132,8 @@ select policyname from pg_policies where policyname like 'tmp\_dev\_%';
 2. Navegador normal: login A → crie OS-1 + ficha. Anote o id da OS-1 (URL).
 3. Aba anônima: login B → lista vazia; cole a URL da OS-1 → "não encontrada";
    crie OS-2. (Logout + login no mesmo navegador também recarrega tudo do
-   zero — nenhum dado do usuário anterior permanece em memória ou cache.)
-4. SQL Editor (service_role implícito do painel — só leitura aqui):
+   zero - nenhum dado do usuário anterior permanece em memória ou cache.)
+4. SQL Editor (service_role implícito do painel - só leitura aqui):
    ```sql
    select number, owner_id from orders where deleted_at is null;
    -- OS-1 com owner A, OS-2 com owner B, sem cruzamento
@@ -150,7 +150,7 @@ guarda em `documents` apenas `provider` (`cloudflare_r2` por padrão),
 **não** criam bucket nem policies de storage.
 
 - Convenção de chave no R2: `documents/{order_id}/{document_id}/{filename}`.
-- Upload futuro: via **Cloudflare Worker com URLs pré-assinadas** — o
+- Upload futuro: via **Cloudflare Worker com URLs pré-assinadas** - o
   browser nunca guarda tokens R2. O Worker devolve a chave (e a URL pública,
   se houver); o app atualiza a linha em `documents` (`stored`).
 - `supabase_storage` e `external_url` existem no enum `document_provider`

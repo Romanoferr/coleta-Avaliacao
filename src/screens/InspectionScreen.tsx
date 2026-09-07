@@ -1,7 +1,7 @@
 /**
  * Ficha de vistoria aninhada à OS (`/os/:id/ficha`).
  * Edição em cópia local + autosave real (debounce + confirmação do backend).
- * Sem ficha: escolha do tipo (property_type definido ANTES da criação —
+ * Sem ficha: escolha do tipo (property_type definido ANTES da criação -
  * melhor UX: o avaliador já sabe o que vai vistoriar ao abrir a OS).
  */
 import { useMemo, useState } from "react";
@@ -141,7 +141,7 @@ export default function InspectionScreen() {
                   key={t.type}
                   icon={t.icon}
                   title={t.label}
-                  description={t.available ? t.description : "Ficha em preparação — entra sem mudar o app."}
+                  description={t.available ? t.description : "Ficha em preparação - entra sem mudar o app."}
                   meta={t.available ? `${getFormDefinition(t.type).sections.length} etapas` : undefined}
                   disabled={!t.available}
                   onSelect={() => {
@@ -202,7 +202,7 @@ export default function InspectionScreen() {
       </button>
     ) : editor.offlineNote ? (
       <p className="mt-3 rounded-xl bg-amber-50 p-3 text-center text-[13.5px] font-bold text-amber-800">
-        Rascunho local restaurado — será sincronizado ao salvar.
+        Rascunho local restaurado - será sincronizado ao salvar.
       </p>
     ) : null;
 
@@ -290,7 +290,7 @@ export default function InspectionScreen() {
                             <dt className="text-[13px] font-medium text-slate-500">{f.label}</dt>
                             <dd className="text-[15.5px] font-semibold leading-snug">
                               {formatAnswer(raw)}
-                              {det.trim() ? <span className="font-medium text-slate-500"> — {det.trim()}</span> : null}
+                              {det.trim() ? <span className="font-medium text-slate-500"> - {det.trim()}</span> : null}
                             </dd>
                           </div>
                         );
@@ -399,7 +399,7 @@ export default function InspectionScreen() {
       <main className="mx-auto max-w-xl px-4 pb-10">
         {readOnly ? (
           <p className="mt-3 rounded-xl bg-slate-100 p-3 text-center text-[13.5px] font-bold text-slate-500">
-            OS {order.status === "completed" ? "concluída" : "cancelada"} — ficha somente leitura.
+            OS {order.status === "completed" ? "concluída" : "cancelada"} - ficha somente leitura.
           </p>
         ) : null}
         {saveBanner}

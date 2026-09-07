@@ -1,5 +1,5 @@
 /**
- * Validação de formulários de autenticação (pura, sem Supabase — testável).
+ * Validação de formulários de autenticação (pura, sem Supabase - testável).
  * Regras: e-mail formato simples, senha mínima 6 (padrão Supabase),
  * nome mínimo 2 caracteres. Mensagens já em pt-BR amigável.
  */

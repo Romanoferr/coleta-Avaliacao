@@ -1,5 +1,5 @@
 -- ============================================================================
--- 00003_ownership — isolamento por usuário (Supabase Auth)
+-- 00003_ownership - isolamento por usuário (Supabase Auth)
 -- ============================================================================
 -- Modelo: User 1→N Orders; Order 1→0..1 Inspection; Order 1→N Documents.
 -- Uma inspection/document deve pertencer ao MESMO usuário da OS (trigger).

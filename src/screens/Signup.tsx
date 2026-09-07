@@ -1,5 +1,5 @@
 /**
- * Cadastro — Supabase Auth signUp. Senha tratada só pelo Supabase
+ * Cadastro - Supabase Auth signUp. Senha tratada só pelo Supabase
  * (nunca gravada em tabela própria, storage ou logs). Nome vai para
  * user_metadata. Identificador do usuário é sempre o UUID do Auth.
  */

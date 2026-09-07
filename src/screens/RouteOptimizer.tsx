@@ -198,7 +198,7 @@ export default function RouteOptimizer() {
       if (base.roundTrip) pts.push(base.start.point);
       else if (base.end) pts.push(base.end.point);
       const r = await measuredInFixedOrder(next, pts, buildConfig({ ...base, stops: next }), [
-        "Ordem ajustada manualmente — métricas recalculadas sem reotimizar.",
+        "Ordem ajustada manualmente - métricas recalculadas sem reotimizar.",
       ]);
       setResult(r);
     } finally {
@@ -240,7 +240,7 @@ export default function RouteOptimizer() {
             />
             {noAddress.length > 0 && (
               <p className="mt-2 rounded-2xl border-[1.5px] border-amber-300 bg-amber-50 p-4 text-[13.5px] font-bold text-amber-900">
-                ⚠ {noAddress.length} OS {noAddress.length === 1 ? "sem" : "sem"} endereço nesta data — preencha o
+                ⚠ {noAddress.length} OS {noAddress.length === 1 ? "sem" : "sem"} endereço nesta data - preencha o
                 endereço na OS para incluí-la.
               </p>
             )}
@@ -303,7 +303,7 @@ export default function RouteOptimizer() {
             </ul>
             {noAddress.length > 0 && (
               <p className="mt-2 rounded-2xl border-[1.5px] border-amber-300 bg-amber-50 p-4 text-[13.5px] font-bold text-amber-900">
-                ⚠ {noAddress.length} OS sem endereço nesta data — fora da rota até o endereço ser preenchido.
+                ⚠ {noAddress.length} OS sem endereço nesta data - fora da rota até o endereço ser preenchido.
               </p>
             )}
 
@@ -327,7 +327,7 @@ export default function RouteOptimizer() {
                 <span className="text-[15px] font-bold">Voltar ao ponto de partida</span>
               </label>
               {!roundTrip && (
-                <OsField label="Destino final" hint="Opcional — vazio = rota aberta (termina na última OS).">
+                <OsField label="Destino final" hint="Opcional - vazio = rota aberta (termina na última OS).">
                   <input
                     value={endText}
                     onChange={(e) => setEndText(e.target.value)}
@@ -446,7 +446,7 @@ export default function RouteOptimizer() {
               ))}
               {segments.length > 1 && (
                 <p className="mt-1.5 text-[12.5px] font-semibold text-slate-300">
-                  ℹ️ Rota com muitas paradas: o Maps abre em {segments.length} trechos navegáveis — a rota completa
+                  ℹ️ Rota com muitas paradas: o Maps abre em {segments.length} trechos navegáveis - a rota completa
                   (ordem otimizada) está preservada abaixo.
                 </p>
               )}
@@ -605,7 +605,7 @@ function RouteSchema({ legs }: { legs: OptimizedRoute["legs"] }) {
         })}
       </svg>
       <figcaption className="mt-1 text-center text-[12px] font-semibold text-slate-400">
-        Esquema da ordem calculada — use o Google Maps para navegar.
+        Esquema da ordem calculada - use o Google Maps para navegar.
       </figcaption>
     </figure>
   );

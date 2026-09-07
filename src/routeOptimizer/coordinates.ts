@@ -1,5 +1,5 @@
 /**
- * Resolução de coordenadas das OSs — fluxo oficial:
+ * Resolução de coordenadas das OSs - fluxo oficial:
  *
  *   OS tem geo válida + geocodedAddress == endereço atual? → usa (stored)
  *   senão: cache local por endereço normalizado? → usa + persiste (cache)
@@ -28,7 +28,7 @@ export interface ResolvedPoint {
 
 export interface ResolveDeps {
   provider: GeocodeProvider;
-  /** Best-effort (pode lançar — será contido aqui). */
+  /** Best-effort (pode lançar - será contido aqui). */
   persist?: (orderId: string, geo: { latitude: number; longitude: number }, key: string) => Promise<unknown>;
   onProgress?: (done: number, total: number) => void;
 }

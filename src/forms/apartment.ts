@@ -29,7 +29,7 @@ const counter = (
 export const apartmentForm: FormDefinition = {
   propertyType: "apartment",
   title: "Apartamento",
-  subtitle: "Roteiro de análise — unidade prédio",
+  subtitle: "Roteiro de análise - unidade prédio",
   sections: [
     {
       id: "identificacao",
@@ -45,7 +45,7 @@ export const apartmentForm: FormDefinition = {
     },
     {
       id: "regiao-infra",
-      title: "Região — Infraestrutura",
+      title: "Região - Infraestrutura",
       description: "Marque tudo que existe na região.",
       order: 2,
       fields: [
@@ -69,13 +69,13 @@ export const apartmentForm: FormDefinition = {
           label: "Evento",
           type: "text",
           hint: "Campo do cabeçalho da ficha (preencha se houver).",
-          placeholder: "Ex.: —",
+          placeholder: "Ex.: -",
         },
       ],
     },
     {
       id: "regiao-polos",
-      title: "Região — Polos",
+      title: "Região - Polos",
       description: "Valorizantes e desvalorizantes.",
       order: 3,
       fields: [
@@ -132,7 +132,7 @@ export const apartmentForm: FormDefinition = {
     },
     {
       id: "bloco-dados",
-      title: "Bloco / Prédio — Dados",
+      title: "Bloco / Prédio - Dados",
       description: "Números do prédio. Digite direto no campo.",
       order: 5,
       fields: [
@@ -151,7 +151,7 @@ export const apartmentForm: FormDefinition = {
     },
     {
       id: "bloco-padrao",
-      title: "Bloco / Prédio — Padrão",
+      title: "Bloco / Prédio - Padrão",
       description: "Escolha uma opção em cada grupo.",
       order: 6,
       fields: [
@@ -204,7 +204,7 @@ export const apartmentForm: FormDefinition = {
     },
     {
       id: "unidade-divisao",
-      title: "Unidade — Divisão interna",
+      title: "Unidade - Divisão interna",
       description: "Conte os cômodos com + / −.",
       order: 9,
       fields: [
@@ -232,7 +232,7 @@ export const apartmentForm: FormDefinition = {
     },
     {
       id: "unidade-equip-vista",
-      title: "Unidade — Equipamentos e vista",
+      title: "Unidade - Equipamentos e vista",
       order: 10,
       fields: [
         {
@@ -259,7 +259,7 @@ export const apartmentForm: FormDefinition = {
     },
     {
       id: "unidade-padrao",
-      title: "Unidade — Padrão",
+      title: "Unidade - Padrão",
       description: "Acabamento e conservação da unidade.",
       order: 11,
       fields: [
@@ -291,7 +291,7 @@ export const apartmentForm: FormDefinition = {
     },
     {
       id: "terreno-a",
-      title: "Terreno — características",
+      title: "Terreno - características",
       description: "Usos, serviços, cota e superfície.",
       order: 13,
       fields: [
@@ -356,7 +356,7 @@ export const apartmentForm: FormDefinition = {
     },
     {
       id: "terreno-b",
-      title: "Terreno — edificação",
+      title: "Terreno - edificação",
       description: "Categoria, posição e uso do prédio.",
       order: 14,
       fields: [

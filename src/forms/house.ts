@@ -21,7 +21,7 @@ const counter = (
 export const houseForm: FormDefinition = {
   propertyType: "house",
   title: "Casa",
-  subtitle: "Roteiro de análise — unidade isolada",
+  subtitle: "Roteiro de análise - unidade isolada",
   sections: [
     {
       id: "identificacao",
@@ -31,7 +31,7 @@ export const houseForm: FormDefinition = {
       fields: [
         { id: "data", label: "Data", type: "date", required: true },
         { id: "cliente", label: "Nome do cliente", type: "text", placeholder: "Nome do cliente" },
-        { id: "endereco_rua", label: "Endereço vistoriado — rua", type: "text", placeholder: "Ex.: Rua das Flores" },
+        { id: "endereco_rua", label: "Endereço vistoriado - rua", type: "text", placeholder: "Ex.: Rua das Flores" },
         {
           id: "numeracao_predial",
           label: "Há numeração predial?",
@@ -43,7 +43,7 @@ export const houseForm: FormDefinition = {
     },
     {
       id: "regiao-infra",
-      title: "Região — Infraestrutura",
+      title: "Região - Infraestrutura",
       description: "Marque tudo que existe na região.",
       order: 2,
       fields: [
@@ -66,7 +66,7 @@ export const houseForm: FormDefinition = {
     },
     {
       id: "regiao-polos",
-      title: "Região — Polos",
+      title: "Região - Polos",
       description: "Valorizantes e desvalorizantes.",
       order: 3,
       fields: [
@@ -123,7 +123,7 @@ export const houseForm: FormDefinition = {
     },
     {
       id: "unidade-divisao",
-      title: "Unidade — Divisão interna",
+      title: "Unidade - Divisão interna",
       description: "Conte os cômodos com + / −.",
       order: 5,
       fields: [
@@ -168,7 +168,7 @@ export const houseForm: FormDefinition = {
     },
     {
       id: "unidade-posicao",
-      title: "Unidade — Posição e lote",
+      title: "Unidade - Posição e lote",
       description: "Escolha uma opção em cada grupo.",
       order: 7,
       fields: [
@@ -206,7 +206,7 @@ export const houseForm: FormDefinition = {
     },
     {
       id: "unidade-cobertura-equip",
-      title: "Unidade — Cobertura e equipamentos",
+      title: "Unidade - Cobertura e equipamentos",
       description: "Marque todos os existentes.",
       order: 8,
       fields: [
@@ -262,7 +262,7 @@ export const houseForm: FormDefinition = {
     },
     {
       id: "unidade-padrao",
-      title: "Unidade — Padrão",
+      title: "Unidade - Padrão",
       description: "Acabamento e conservação da unidade.",
       order: 10,
       fields: [
@@ -478,7 +478,7 @@ export const houseForm: FormDefinition = {
         },
         {
           id: "cond_fechamento_grau",
-          label: "Fechamento do contorno — grau",
+          label: "Fechamento do contorno - grau",
           type: "radio",
           options: ["Total", "Parcial", "Inexistente"].map(opt),
         },

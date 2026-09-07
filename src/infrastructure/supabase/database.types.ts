@@ -1,5 +1,5 @@
 /**
- * Tipos do schema — espelho MANUAL de supabase/migrations/00001_core.
+ * Tipos do schema - espelho MANUAL de supabase/migrations/00001_core.
  *
  * ⚠️  NÃO EDITAR para mudar o banco: a fonte de verdade é a migration.
  *     Após `supabase link`, regenere com o comando oficial e sobrescreva

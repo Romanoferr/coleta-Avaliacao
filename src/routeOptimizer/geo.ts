@@ -1,5 +1,5 @@
 /**
- * Geometria e cache local de coordenadas — puro, sem rede.
+ * Geometria e cache local de coordenadas - puro, sem rede.
  * Cache em localStorage evita geocodificar o mesmo endereço repetidamente.
  */
 import { formatAddress } from "../domain/address";

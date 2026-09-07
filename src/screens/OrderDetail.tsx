@@ -158,20 +158,20 @@ export default function OrderDetail() {
               <DetailRow label="Vistoria">
                 {order.inspectionDate ? `${formatDateBR(order.inspectionDate)}${order.inspectionTime ? ` · ${order.inspectionTime}` : ""}` : "A agendar"}
               </DetailRow>
-              <DetailRow label="Concluir até">{order.dueDate ? formatDateBR(order.dueDate) : "—"}</DetailRow>
-              <DetailRow label="Endereço">{addressLine(order) || "—"}</DetailRow>
+              <DetailRow label="Concluir até">{order.dueDate ? formatDateBR(order.dueDate) : "-"}</DetailRow>
+              <DetailRow label="Endereço">{addressLine(order) || "-"}</DetailRow>
               <DetailRow label="Responsável">
-                {order.contactName || "—"}
+                {order.contactName || "-"}
                 {order.contactPhone ? <span className="block text-slate-500">{order.contactPhone}</span> : null}
               </DetailRow>
-              <DetailRow label="Observações">{order.notes || "—"}</DetailRow>
+              <DetailRow label="Observações">{order.notes || "-"}</DetailRow>
               <DetailRow label="Histórico">
                 <span className="tnum text-[13.5px] font-semibold text-slate-500">
                   {order.statusHistory.length} evento{order.statusHistory.length === 1 ? "" : "s"}
                   {" · último: "}
                   {(() => {
                     const last = order.statusHistory[order.statusHistory.length - 1];
-                    return last ? `${STATUS_LABEL[last.to]}${last.note ? ` (${last.note})` : ""}` : "—";
+                    return last ? `${STATUS_LABEL[last.to]}${last.note ? ` (${last.note})` : ""}` : "-";
                   })()}
                 </span>
               </DetailRow>
@@ -186,7 +186,7 @@ export default function OrderDetail() {
               </button>
             ) : (
               <p className="mt-4 rounded-xl bg-slate-100 p-3 text-center text-[13.5px] font-bold text-slate-500">
-                OS {STATUS_LABEL[order.status].toLowerCase()} — somente leitura. Reabra para editar.
+                OS {STATUS_LABEL[order.status].toLowerCase()} - somente leitura. Reabra para editar.
               </p>
             )}
             <div className="mt-4">

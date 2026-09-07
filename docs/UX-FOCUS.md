@@ -1,4 +1,4 @@
-# Foco em UX/UI — Coleta Avaliação
+# Foco em UX/UI - Coleta Avaliação
 
 > Documento vivo. Toda mudança visual nesta etapa deve respeitar estas diretrizes.
 > Prioridade: **UX > UI > estética**.
@@ -11,19 +11,19 @@ o imóvel e o aparelho, sessões de vários minutos. A interface deve funcionar 
 
 ## 2. Princípios inegociáveis
 
-1. **Mínimo de digitação** — contador/stepper para quantidades, cards tocáveis
+1. **Mínimo de digitação** - contador/stepper para quantidades, cards tocáveis
    para opções, teclado correto (`numeric`, `tel`, `date`, moeda com prefixo R$).
-2. **Poucas decisões por tela** — uma seção = uma etapa; nunca uma tela por campo,
+2. **Poucas decisões por tela** - uma seção = uma etapa; nunca uma tela por campo,
    nunca o formulário inteiro numa página.
-3. **Toque grande e seguro** — alvos ≥ **48px** (ideal 56px), espaçamento entre
+3. **Toque grande e seguro** - alvos ≥ **48px** (ideal 56px), espaçamento entre
    alvos ≥ 8px, nav inferior fixa com `safe-area`.
-4. **Orientação constante** — toda tela de coleta mostra: onde estou, quanto falta
+4. **Orientação constante** - toda tela de coleta mostra: onde estou, quanto falta
    (`Etapa X de Y` + `%`), como voltar e como avançar.
-5. **Nada se perde** — rascunho em `localStorage`, voltar preserva respostas,
+5. **Nada se perde** - rascunho em `localStorage`, voltar preserva respostas,
    indicador visível de "Salvo ✓ HH:MM".
-6. **Feedback em toda ação** — seleção, avanço, salvamento e conclusão têm resposta
+6. **Feedback em toda ação** - seleção, avanço, salvamento e conclusão têm resposta
    visual imediata (estado + microtransição ≤200ms). Sem animação decorativa.
-7. **Nada depende só de cor** — selecionado = cor + ícone (✓/●) + borda + peso.
+7. **Nada depende só de cor** - selecionado = cor + ícone (✓/●) + borda + peso.
 
 ## 3. Sistema visual (identidade: engenharia precisa)
 
@@ -36,22 +36,22 @@ o imóvel e o aparelho, sessões de vários minutos. A interface deve funcionar 
 | Primária | `#1D4ED8` (blue-700) | CTA, selecionado, progresso |
 | Sucesso | `#15803D` | yes-sim, salvo, conclusão |
 | Alerta | `#B45309` | rascunho, atenção |
-| Raio | 16px cards / 12px inputs | — |
+| Raio | 16px cards / 12px inputs | - |
 | Sombra | 1 nível, só em cards elevados/nav | sem sombras decorativas |
 
 Proibido: gradientes, glassmorphism, >2 cores de destaque por tela,
 ícones aleatórios, dropdown para ≤7 opções, campos <48px.
 
-## 4. Componentes (biblioteca própria — consistência obrigatória)
+## 4. Componentes (biblioteca própria - consistência obrigatória)
 
 - **OptionCard** (tipo de imóvel): ícone + título + descrição, 76px+, estado
   selecionado e estado `disabled` ("Em breve").
 - **RadioCard**: lista 1 coluna, radio-● à esquerda, selecionado = borda
   primária + fundo `blue-50` + texto `blue-950`.
 - **CheckCard**: lista 1 coluna; **grade 2 colunas compacta quando todas as
-  opções têm rótulo curto (≤24 chars)** — reduz rolagem sem quebrar legibilidade.
+  opções têm rótulo curto (≤24 chars)** - reduz rolagem sem quebrar legibilidade.
   Selecionado = ✓ + mesma linguagem do radio.
-- **Stepper**: card único `− valor +`, botões 56px, valor somente-leitura —
+- **Stepper**: card único `− valor +`, botões 56px, valor somente-leitura -
   só para quantidades pequenas (cômodos, vagas). Números grandes usam Number.
 - **YesNo**: 2 botões segmentados, Sim=verde / Não=vermelho quando ativos.
   Com `otherDetailId`, Sim revela campo de descrição abaixo.
@@ -72,14 +72,14 @@ Proibido: gradientes, glassmorphism, >2 cores de destaque por tela,
 - **StatusChip** (OS): ponto + texto do status, nunca só cor.
 - **OSCard**: OS nº + chip + contratante + endereço + data/hora + selos
   (Com/Sem ficha, Atrasada/Atenção).
-- **Abas da OS**: Dados | Ficha | Documentos — segmentado 52px.
+- **Abas da OS**: Dados | Ficha | Documentos - segmentado 52px.
 - **ConfirmSheet**: confirmação destrutiva em 2 toques (sem digitar).
 
 ## 5. Regras de dados (não quebrar)
 
 - Fichas físicas = fonte de verdade de **campos, opções, nomenclatura e ordem**.
 - Camada de dados (`src/forms/*` → `form-engine` → componentes) não muda por
-  motivo visual. Casa entra como `src/forms/house.ts` + registro — zero refatoração.
+  motivo visual. Casa entra como `src/forms/house.ts` + registro - zero refatoração.
 - Sem backend nesta etapa: sem auth, sem banco, sem PDF.
 
 ## 6. Como testar no celular

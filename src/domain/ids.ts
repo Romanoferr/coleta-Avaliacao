@@ -2,7 +2,7 @@
 
 /**
  * Identidade técnica: UUID v4 puro (compatível com `uuid` do PostgreSQL).
- * O id nunca é exibido ao usuário — o número comercial da OS vive em `number`.
+ * O id nunca é exibido ao usuário - o número comercial da OS vive em `number`.
  */
 export function newId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();

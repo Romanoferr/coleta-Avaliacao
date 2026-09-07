@@ -1,5 +1,5 @@
 /**
- * Seleção de OS por data — função pura sobre a lista JÁ isolada por usuário.
+ * Seleção de OS por data - função pura sobre a lista JÁ isolada por usuário.
  * Isolamento: a tela alimenta esta função apenas com `useStore().orders`,
  * que já vem filtrado por RLS (auth.uid() = owner_id) + limpeza de memória
  * na troca de usuário. Esta camada nunca busca por id arbitrário.

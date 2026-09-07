@@ -1,12 +1,12 @@
 /**
  * Autenticação (Supabase Auth, e-mail + senha).
- * Sessão persistida/restaurada pelo próprio SDK — o app nunca armazena
+ * Sessão persistida/restaurada pelo próprio SDK - o app nunca armazena
  * senha ou tokens manualmente.
  *
  * Fluxos: signUp (nome vai para user_metadata, nunca para tabela própria),
  * signIn, signOut, resetPasswordForEmail, updateUser (redefinição) e
  * resend de confirmação. owner_id continua derivado de auth.getUser()/
- * auth.uid() nos repositories — o frontend nunca escolhe o dono.
+ * auth.uid() nos repositories - o frontend nunca escolhe o dono.
  *
  * Sem Supabase configurado, status = "local" e as rotas não exigem login
  * (modo single-user offline, comportamento anterior preservado).

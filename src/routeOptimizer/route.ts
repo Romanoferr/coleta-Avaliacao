@@ -2,7 +2,7 @@
  * Controlador da otimização: ordem inicial CRONOLÓGICA (agendamento, do mais
  * cedo para o mais tarde) + medição na malha viária (OSRM /route) com fallback
  * em linha reta. Puro e testável (rede injetável).
- * REGRA: a ordem inicial nunca é "otimizada" por deslocamento — o cliente
+ * REGRA: a ordem inicial nunca é "otimizada" por deslocamento - o cliente
  * ajusta na mão (↑↓) se quiser. Horários servem para ordenar (cronologia),
  * exibir e prever chegadas. `serviceMinutes` (configurável) vale só para
  * previsão de chegadas/avisos.
@@ -52,7 +52,7 @@ export interface Timeline {
  * Simula o cronograma: deslocamento estimado + `serviceMinutes` de
  * atendimento por parada. Ancora a saída para chegar ao 1º horário em ponto
  * (aguardar é permitido: nunca se "adianta" um horário). Sem OS com horário,
- * não há o que simular. NÃO reordena nada — só relata.
+ * não há o que simular. NÃO reordena nada - só relata.
  */
 export function simulateTimeline(
   stops: RouteStop[],
@@ -108,7 +108,7 @@ export function delayWarnings(timeline: Timeline, serviceMinutes: number): strin
     .filter((e) => e.lateBy > 0 && e.scheduled)
     .map(
       (e) =>
-        `Conflito de horário: OS ${e.number} (${e.scheduled}) — chegada prevista ~${e.eta}, ~${e.lateBy} min após o horário (considerando ~${serviceMinutes} min de atendimento por parada).`
+        `Conflito de horário: OS ${e.number} (${e.scheduled}) - chegada prevista ~${e.eta}, ~${e.lateBy} min após o horário (considerando ~${serviceMinutes} min de atendimento por parada).`
     );
 }
 
@@ -243,7 +243,7 @@ export async function measuredInFixedOrder(
     const m = distanceMatrix(points);
     km = pathKm(points.map((_, i) => i), m, config.roundTrip);
     minutes = estimateMinutes(km);
-    notes.push("Sem conexão com o roteador — distância em linha reta.");
+    notes.push("Sem conexão com o roteador - distância em linha reta.");
   }
   const schedule = buildSchedule(ordered, config.start.point, config.serviceMinutes);
   return {

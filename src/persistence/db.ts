@@ -1,5 +1,5 @@
 /**
- * Banco local v1 — ports + adaptador localStorage.
+ * Banco local v1 - ports + adaptador localStorage.
  * O domínio nunca importa este módulo; o store (application) depende das
  * interfaces OrderStore/InspectionStore/DocumentStore, implementadas aqui
  * para localStorage. Trocar por Supabase = nova implementação das portas.

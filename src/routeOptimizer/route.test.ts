@@ -165,7 +165,7 @@ describe("route (controlador)", () => {
   });
 
   it("usuário sem permissão: controlador só enxerga a lista recebida", async () => {
-    // O controlador nunca busca OS por id — só ordena `stops` resolvidos pela tela
+    // O controlador nunca busca OS por id - só ordena `stops` resolvidos pela tela
     // a partir do store isolado (RLS). Com lista vazia, recusa em vez de buscar.
     await expect(computeOptimizedRoute({ config: config(), stops: [] }, failFetchAs())).rejects.toThrow();
   });

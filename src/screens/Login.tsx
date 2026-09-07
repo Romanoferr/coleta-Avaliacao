@@ -1,5 +1,5 @@
 /**
- * Login — e-mail + senha (Supabase Auth). Cadastro e recuperação
+ * Login - e-mail + senha (Supabase Auth). Cadastro e recuperação
  * têm rotas próprias (/cadastro, /recuperar-senha).
  */
 import { useState } from "react";

@@ -19,10 +19,10 @@ export type FieldType =
   | "date"
   | "tel" // contato (teclado telefone, sem validação rígida)
   | "textarea"
-  | "radio" // seleção única — cards tocáveis
-  | "checkbox" // seleção múltipla — chips/cards tocáveis
+  | "radio" // seleção única - cards tocáveis
+  | "checkbox" // seleção múltipla - chips/cards tocáveis
   | "yesno" // Sim/Não segmentado
-  | "compass" // seleção única de direção — rosa dos ventos tocável
+  | "compass" // seleção única de direção - rosa dos ventos tocável
   | "subtitle"; // apenas título de subgrupo dentro da seção (sem valor)
 
 export interface FieldOption {
@@ -39,7 +39,7 @@ export interface FormField {
   placeholder?: string;
   required?: boolean;
   options?: FieldOption[];
-  /** Permite "Outros + detalhe" — exibe campo livre complementar */
+  /** Permite "Outros + detalhe" - exibe campo livre complementar */
   allowOtherDetail?: boolean;
   otherDetailLabel?: string;
   otherDetailId?: string;

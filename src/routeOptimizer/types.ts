@@ -1,5 +1,5 @@
 /**
- * Otimizador de Rotas — tipos do módulo.
+ * Otimizador de Rotas - tipos do módulo.
  * Separação: types (contratos) → geo/select (puro, sem rede) → geocode/osrm
  * (rede, sem chave) → optimize (heurística/controlador) → maps (URL pública).
  */
@@ -37,7 +37,7 @@ export interface RouteConfig {
   end: RouteEndpoint | null;
   /**
    * Minutos médios de atendimento por parada (configurável na UI).
-   * Usado SÓ para previsão de chegadas/avisos — nunca para ordenar.
+   * Usado SÓ para previsão de chegadas/avisos - nunca para ordenar.
    */
   serviceMinutes: number;
 }
@@ -67,7 +67,7 @@ export interface OptimizedRoute {
     orderId: string | null;
     /**
      * Texto do endereço como digitado (OSs) ou informado (início/fim).
-     * O Google Maps recebe este texto — não a coordenada — para exibir
+     * O Google Maps recebe este texto - não a coordenada - para exibir
      * exatamente o endereço de origem (coordenadas servem só à otimização).
      */
     address: string | null;

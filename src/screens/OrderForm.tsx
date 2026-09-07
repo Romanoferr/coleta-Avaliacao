@@ -225,7 +225,7 @@ export default function OrderForm({ mode }: { mode: "new" | "edit" }) {
           <OsField label="Telefone / contato">
             <input className={osInputCls} value={v.contactPhone} onChange={set("contactPhone")} placeholder="(43) 99999-9999" autoComplete="off" inputMode="tel" />
           </OsField>
-          <OsField label="Observações da OS" hint="Administrativas — não confundir com a vistoria técnica.">
+          <OsField label="Observações da OS" hint="Administrativas - não confundir com a vistoria técnica.">
             <textarea className={`${osInputCls} py-3.5`} rows={3} value={v.notes} onChange={set("notes")} placeholder="Anotações do serviço" />
           </OsField>
         </div>
