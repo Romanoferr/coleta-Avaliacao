@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppHeader } from "../components/chrome";
 import { hasAccess, needsAttention } from "../domain/billing";
+import { getPaymentProvider } from "../infrastructure/billing/client";
 import { getSupabase, isSupabaseConfigured } from "../infrastructure/supabase/client";
 import { useAuth } from "../state/auth";
 import { useBilling } from "../state/billing";
@@ -23,6 +24,22 @@ export default function Subscription() {
   const { user } = useAuth();
   const { status, planId, loading, refresh } = useBilling();
   const [pays, setPays] = useState<PayRow[]>([]);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelMsg, setCancelMsg] = useState("");
+  const cancellable = status === "active" || status === "trialing" || status === "past_due";
+
+  const cancel = () => {
+    if (!window.confirm("Cancelar a assinatura? O acesso é bloqueado na hora.")) return;
+    setCancelBusy(true);
+    setCancelMsg("");
+    getPaymentProvider()
+      .cancelSubscription("")
+      .then(() => refresh().then(() => setCancelMsg("Assinatura cancelada.")))
+      .catch((e: unknown) => {
+        setCancelMsg(e instanceof Error ? e.message : "Falha ao cancelar.");
+      })
+      .finally(() => setCancelBusy(false));
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -79,6 +96,19 @@ export default function Subscription() {
               >
                 Atualizar status
               </button>
+              {cancellable ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={cancelBusy}
+                    onClick={cancel}
+                    className="mt-2 h-[48px] w-full rounded-2xl text-[14px] font-extrabold text-red-600 underline underline-offset-2 disabled:opacity-60"
+                  >
+                    {cancelBusy ? "Cancelando…" : "Cancelar assinatura"}
+                  </button>
+                  {cancelMsg ? <p className="mt-2 text-[13.5px] font-bold text-slate-600">{cancelMsg}</p> : null}
+                </>
+              ) : null}
             </>
           )}
         </section>

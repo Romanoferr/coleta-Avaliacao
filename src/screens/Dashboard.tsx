@@ -165,16 +165,6 @@ export default function Dashboard() {
       description="Sua central de trabalho. Acompanhe o dia, encontre qualquer OS e planeje a rota."
       active="home"
       wide
-      actions={
-        <>
-          <button type="button" onClick={() => navigate("/rota")} className="app-btn app-btn--secondary app-btn--sm">
-            ◎ Otimizar rota do dia
-          </button>
-          <button type="button" onClick={() => navigate("/os/new")} className="app-btn app-btn--primary app-btn--sm">
-            + Nova OS
-          </button>
-        </>
-      }
     >
       {stale ? (
         <p className="app-alert app-alert--warn" style={{ marginBottom: 12 }}>

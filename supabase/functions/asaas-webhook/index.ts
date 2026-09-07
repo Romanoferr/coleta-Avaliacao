@@ -9,14 +9,29 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.115.0";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, asaas-access-token",
+};
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
   const expected = Deno.env.get("ASAAS_WEBHOOK_TOKEN") ?? "";
   const got = req.headers.get("asaas-access-token") ?? "";
   if (!expected || got !== expected) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
   }
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -26,22 +41,26 @@ serve(async (req) => {
   try {
     body = await req.json();
   } catch {
-    return new Response("Bad request", { status: 400 });
+    return new Response("Bad request", { status: 400, headers: corsHeaders });
   }
   const event = body.event ?? "unknown";
   const payment = (body.payment ?? {}) as Record<string, unknown>;
   const payId = String(payment.id ?? `${event}_${Date.now()}`);
+  // Idempotencia por evento, nao por pagamento: o mesmo pagamento gera
+  // PAYMENT_CREATED, PAYMENT_RECEIVED etc. Chave so pelo pagamento fazia
+  // o RECEIVED ser descartado como duplicado do CREATED.
+  const eventKey = `${event}:${payId}`;
 
   // Idempotencia: ignora duplicado.
   const { error: evtErr } = await supabase.from("billing_webhook_events").insert({
     provider: "asaas",
     event_type: event,
-    external_id: payId,
+    external_id: eventKey,
     payload: body,
     processed_at: new Date().toISOString(),
   });
   if (evtErr && evtErr.code === "23505") {
-    return Response.json({ ok: true, deduped: true });
+    return json({ ok: true, deduped: true });
   }
 
   const externalRef = String(
@@ -50,7 +69,7 @@ serve(async (req) => {
   const paymentSubscriptionId = String(payment.subscription ?? "");
   const paymentCustomerId = String(payment.customer ?? "");
   if (!externalRef && !paymentSubscriptionId) {
-    return Response.json({ ok: true, skipped: true });
+    return json({ ok: true, skipped: true });
   }
 
   const findSub = async () => {
@@ -82,9 +101,14 @@ serve(async (req) => {
     const sub = await findSub();
     const amount = Number(payment.value ?? 39.9);
     if (sub) {
+      // Periodo pago: 30 dias a partir do pagamento (plano mensal).
+      const base = payment.confirmedDate ?? payment.clientPaymentDate ?? payment.dateCreated;
+      const baseMs = base ? Date.parse(String(base)) : Date.now();
+      const periodEnd = new Date((Number.isNaN(baseMs) ? Date.now() : baseMs) + 30 * 24 * 3600 * 1000).toISOString();
       await supabase.from("billing_subscriptions").update({
         status: "active",
         cancel_at_period_end: false,
+        current_period_end: periodEnd,
       }).eq("id", sub.id);
       if (paymentCustomerId) {
         await supabase.from("billing_customers").upsert(
@@ -120,9 +144,19 @@ serve(async (req) => {
   } else if (event === "SUBSCRIPTION_DELETED") {
     const sub = await findSub();
     if (sub) {
-      await supabase.from("billing_subscriptions").update({ status: "canceled" }).eq("id", sub.id);
+      // Se o cancelamento partiu do app (carencia), mantem acesso ate o
+      // fim do periodo. Senao, bloqueia na hora.
+      const { data: row } = await supabase
+        .from("billing_subscriptions")
+        .select("cancel_at_period_end")
+        .eq("id", sub.id)
+        .maybeSingle();
+      const typed = row as { cancel_at_period_end?: boolean } | null;
+      if (!typed?.cancel_at_period_end) {
+        await supabase.from("billing_subscriptions").update({ status: "canceled" }).eq("id", sub.id);
+      }
     }
   }
 
-  return Response.json({ ok: true });
+  return json({ ok: true });
 });

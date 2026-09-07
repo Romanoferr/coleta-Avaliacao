@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../state/auth";
 import { Wordmark, scrollToSection } from "./ui";
 
 const LINKS = [
@@ -16,8 +17,16 @@ const LINKS = [
 
 export function SiteNav() {
   const navigate = useNavigate();
+  const { status, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  // Logado nao cai em tela de login: nav mostra acesso direto ao app e saida.
+  const hasSession = status === "authenticated" || status === "local";
+
+  const leave = () => {
+    setOpen(false);
+    void signOut().then(() => navigate("/", { replace: true }));
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -63,12 +72,25 @@ export function SiteNav() {
         </nav>
 
         <div className="site-nav-cta">
-          <button type="button" onClick={() => navigate("/login")} className="site-nav-login">
-            Entrar
-          </button>
-          <button type="button" onClick={() => navigate("/cadastro")} className="site-btn site-btn--primary site-btn--sm">
-            Começar agora
-          </button>
+          {hasSession ? (
+            <>
+              <button type="button" onClick={leave} className="site-nav-login">
+                Sair
+              </button>
+              <button type="button" onClick={() => navigate("/dashboard")} className="site-btn site-btn--primary site-btn--sm">
+                Abrir aplicação
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => navigate("/login")} className="site-nav-login">
+                Entrar
+              </button>
+              <button type="button" onClick={() => navigate("/cadastro")} className="site-btn site-btn--primary site-btn--sm">
+                Começar agora
+              </button>
+            </>
+          )}
         </div>
 
         <button
@@ -93,12 +115,25 @@ export function SiteNav() {
             </button>
           ))}
           <div className="site-mobile-cta">
-            <button type="button" onClick={() => navigate("/login")} className="site-btn site-btn--ghost">
-              Entrar
-            </button>
-            <button type="button" onClick={() => navigate("/cadastro")} className="site-btn site-btn--primary">
-              Começar agora
-            </button>
+            {hasSession ? (
+              <>
+                <button type="button" onClick={() => { setOpen(false); navigate("/dashboard"); }} className="site-btn site-btn--primary">
+                  Abrir aplicação
+                </button>
+                <button type="button" onClick={leave} className="site-btn site-btn--ghost">
+                  Sair
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => navigate("/login")} className="site-btn site-btn--ghost">
+                  Entrar
+                </button>
+                <button type="button" onClick={() => navigate("/cadastro")} className="site-btn site-btn--primary">
+                  Começar agora
+                </button>
+              </>
+            )}
           </div>
         </nav>
       ) : null}

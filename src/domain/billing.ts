@@ -45,6 +45,24 @@ export function hasAccess(status: BillingStatus): boolean {
   return status === "active" || status === "trialing";
 }
 
+/**
+ * Acesso efetivo com carencia: quem cancelou no fim do periodo mantem
+ * acesso ate currentPeriodEnd. Ativo com renovacao desligada tambem
+ * expira junto com o periodo, pois nao vira nova cobranca.
+ */
+export function effectiveAccess(
+  status: BillingStatus,
+  cancelAtPeriodEnd: boolean,
+  currentPeriodEnd: string | null
+): boolean {
+  if (status === "none" || status === "unpaid") return false;
+  if (cancelAtPeriodEnd) {
+    if (!currentPeriodEnd) return status !== "canceled";
+    return new Date(currentPeriodEnd).getTime() > Date.now();
+  }
+  return status === "active" || status === "trialing" || status === "past_due";
+}
+
 /** Status que merecem aviso, sem bloquear de imediato. */
 export function needsAttention(status: BillingStatus): boolean {
   return status === "past_due" || status === "unpaid";

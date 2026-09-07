@@ -10,7 +10,7 @@ export type CheckoutMethod = "card" | "pix";
 export interface CheckoutInput {
   planId: PlanId;
   method: CheckoutMethod;
-  customer: { name: string; email: string; cpfCnpj?: string };
+  customer: { name: string; email: string; cpfCnpj?: string; phone?: string };
   promoFirstMonth?: boolean;
 }
 

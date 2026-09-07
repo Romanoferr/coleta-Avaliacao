@@ -6,7 +6,7 @@
  * retorno, destino opcional, seleção de OSs e abertura no Google Maps ·
  * documentos vinculados à OS · conta individual com dados isolados.
  */
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../state/auth";
 import { SiteNav } from "../site/SiteNav";
 import { SiteFooter } from "../site/SiteFooter";
@@ -147,6 +147,9 @@ const AUDIENCES = [
 export default function Landing() {
   const { status } = useAuth();
   const navigate = useNavigate();
+  // Landing e sempre publica: logado ou nao, qualquer um pode ler o site.
+  // Quem tem conta usa os botoes para entrar no app, sem redirect forcado.
+  const hasSession = status === "authenticated" || status === "local";
 
   if (status === "loading") {
     return (
@@ -154,9 +157,6 @@ export default function Landing() {
         <p>Carregando…</p>
       </div>
     );
-  }
-  if (status === "authenticated" || status === "local") {
-    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -180,10 +180,10 @@ export default function Landing() {
               <div className="site-hero-cta">
                 <button
                   type="button"
-                  onClick={() => navigate("/cadastro")}
+                  onClick={() => navigate(hasSession ? "/dashboard" : "/cadastro")}
                   className="site-btn site-btn--primary site-btn--lg"
                 >
-                  Começar agora
+                  {hasSession ? "Abrir aplicação" : "Começar agora"}
                 </button>
                 <button
                   type="button"
@@ -623,17 +623,17 @@ export default function Landing() {
               <div className="site-hero-cta site-cta-btns">
                 <button
                   type="button"
-                  onClick={() => navigate("/cadastro")}
+                  onClick={() => navigate(hasSession ? "/dashboard" : "/cadastro")}
                   className="site-btn site-btn--primary site-btn--lg"
                 >
-                  Começar agora
+                  {hasSession ? "Abrir aplicação" : "Começar agora"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate("/login")}
+                  onClick={() => navigate(hasSession ? "/planos" : "/login")}
                   className="site-btn site-btn--outline-light site-btn--lg"
                 >
-                  Entrar na plataforma
+                  {hasSession ? "Ver plano" : "Entrar na plataforma"}
                 </button>
               </div>
             </Reveal>

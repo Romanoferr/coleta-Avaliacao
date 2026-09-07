@@ -15,9 +15,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.115.0";
 const PRICE_CENTS = 3990;
 const PROMO_CENTS = 990;
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -27,31 +42,31 @@ serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
   }
   const supabase = createClient(supabaseUrl, serviceKey);
   const jwt = authHeader.replace("Bearer ", "");
   const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
   if (userErr || !userData.user) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
   }
   const user = userData.user;
 
-  let body: { planId?: string; method?: string; customer?: { name?: string; email?: string; cpfCnpj?: string }; promoFirstMonth?: boolean };
+  let body: { planId?: string; method?: string; customer?: { name?: string; email?: string; cpfCnpj?: string; phone?: string }; promoFirstMonth?: boolean };
   try {
     body = await req.json();
   } catch {
-    return new Response("Bad request", { status: 400 });
+    return new Response("Bad request", { status: 400, headers: corsHeaders });
   }
   if (body.planId !== "pro") {
-    return new Response("Plano invalido", { status: 400 });
+    return new Response("Plano invalido", { status: 400, headers: corsHeaders });
   }
   const method = body.method === "pix" ? "PIX" : "CREDIT_CARD";
   const usePromo = body.promoFirstMonth !== false;
 
   if (!asaasKey) {
     // Sem chave: devolve mock para o frontend seguir navegando.
-    return Response.json({
+    return json({
       provider: "mock",
       externalId: `mock_${Date.now()}`,
       checkoutUrl: `${appBase}#/assinatura?mock=1&plan=pro`,
@@ -67,17 +82,32 @@ serve(async (req) => {
   });
   const searchJson = await searchRes.json().catch(() => ({}));
   const found = searchJson?.data?.[0]?.id;
+  const patch: Record<string, unknown> = { name };
+  if (body.customer?.cpfCnpj) patch.cpfCnpj = body.customer.cpfCnpj;
+  if (body.customer?.phone) patch.mobilePhone = body.customer.phone;
   if (found) {
     customerId = found;
+    // Repara cadastros antigos incompletos (ex. sem CPF): o Asaas exige
+    // CPF/CNPJ do cliente para gerar cobranca Pix ou cartao.
+    await fetch(`${asaasBase}/customers/${customerId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", access_token: asaasKey },
+      body: JSON.stringify(patch),
+    });
   } else {
     const createRes = await fetch(`${asaasBase}/customers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", access_token: asaasKey },
-      body: JSON.stringify({ name, email, cpfCnpj: body.customer?.cpfCnpj }),
+      body: JSON.stringify({
+        name,
+        email,
+        cpfCnpj: body.customer?.cpfCnpj,
+        mobilePhone: body.customer?.phone,
+      }),
     });
     const createJson = await createRes.json();
     if (!createRes.ok) {
-      return new Response(JSON.stringify(createJson), { status: 502 });
+      return json(createJson, 502);
     }
     customerId = createJson.id;
   }
@@ -104,7 +134,7 @@ serve(async (req) => {
   });
   const subJson = await subRes.json();
   if (!subRes.ok) {
-    return new Response(JSON.stringify(subJson), { status: 502 });
+    return json(subJson, 502);
   }
 
   // 3. Espelha no banco local (service_role bypassa RLS).
@@ -121,9 +151,40 @@ serve(async (req) => {
     promo_first_month: usePromo,
   });
 
-  return Response.json({
+  return json({
     provider: "asaas",
     externalId: subJson.id,
-    checkoutUrl: subJson.invoiceUrl ?? subJson.bankSlipUrl ?? `${appBase}#/assinatura?sub=${subJson.id}`,
+    checkoutUrl: await resolveCheckoutUrl(asaasBase, asaasKey, subJson.id, subJson, appBase),
   });
 });
+
+// A assinatura gera a primeira cobranca em seguida. O link dessa cobranca
+// (invoiceUrl) e a pagina onde o cliente digita o cartao ou escaneia o Pix,
+// incluindo os dados do titular. Sem isso o app devolveria um link vazio.
+async function resolveCheckoutUrl(
+  asaasBase: string,
+  asaasKey: string,
+  subscriptionId: string,
+  subJson: Record<string, unknown>,
+  appBase: string
+): Promise<string> {
+  if (typeof subJson.invoiceUrl === "string" && subJson.invoiceUrl) {
+    return subJson.invoiceUrl;
+  }
+  try {
+    const payRes = await fetch(`${asaasBase}/subscriptions/${subscriptionId}/payments`, {
+      headers: { access_token: asaasKey },
+    });
+    const payJson = await payRes.json().catch(() => ({}));
+    const first = payJson?.data?.[0];
+    if (first && typeof first.invoiceUrl === "string" && first.invoiceUrl) {
+      return first.invoiceUrl;
+    }
+  } catch {
+    // segue para o fallback abaixo
+  }
+  if (typeof subJson.bankSlipUrl === "string" && subJson.bankSlipUrl) {
+    return subJson.bankSlipUrl;
+  }
+  return `${appBase}#/assinatura?sub=${subscriptionId}`;
+}
