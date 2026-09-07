@@ -62,7 +62,7 @@ function CounterRow({ field, value, onChange }: Props) {
           aria-label={`Diminuir ${field.label}`}
           className={`${stepBtn} border-[1.5px] border-slate-200 text-slate-500 active:bg-slate-100`}
         >
-          −
+          -
         </button>
         <span
           className="tnum w-11 text-center text-[19px] font-extrabold"
@@ -248,7 +248,7 @@ function Compass({ field, value, onChange }: Props) {
                 className="flex min-h-[56px] flex-col items-center justify-center rounded-2xl border-[1.5px] border-slate-200 bg-slate-50"
                 aria-live="polite"
               >
-                <span className="tnum text-[19px] font-extrabold text-brand">{selectedOpt ? COMPASS_DIRS[selectedDir].abbrev : "–"}</span>
+                <span className="tnum text-[19px] font-extrabold text-brand">{selectedOpt ? COMPASS_DIRS[selectedDir].abbrev : "·"}</span>
                 <span className="max-w-full truncate px-1 text-[10px] font-semibold text-slate-500">
                   {selectedOpt ? selectedOpt.label : "Toque numa direção"}
                 </span>

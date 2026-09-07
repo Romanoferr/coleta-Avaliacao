@@ -7,9 +7,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  AppHeader,
+  AppShell,
   BottomNav,
   CompletionRing,
+  ErrorBlock,
+  LoadingBlock,
   ProgressHairline,
   SectionHeader,
   TypeCard,
@@ -74,46 +76,35 @@ export default function InspectionScreen() {
   // ---------- carregamento / erro ----------
   if (editor.phase === "loading") {
     return (
-      <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow="Ficha de vistoria" title="Carregando…" onBack={backToOrder} />
-        <main className="mx-auto max-w-xl px-4 pb-10 pt-6">
-          <div className="animate-pulse rounded-2xl border border-slate-200/80 bg-white p-5">
-            <div className="h-5 w-2/3 rounded bg-slate-100" />
-            <div className="mt-3 h-4 w-full rounded bg-slate-100" />
-            <div className="mt-2 h-4 w-5/6 rounded bg-slate-100" />
-            <div className="mt-2 h-4 w-4/6 rounded bg-slate-100" />
-          </div>
-          <p className="mt-3 text-center text-[13px] font-semibold text-slate-400">Carregando ficha…</p>
-        </main>
-      </div>
+      <AppShell eyebrow="Ficha de vistoria" title="Carregando" active="ficha">
+        <LoadingBlock rows={4} label="Carregando ficha…" />
+      </AppShell>
     );
   }
 
   if (editor.phase === "error" || !order) {
     return (
-      <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow="Ficha de vistoria" title="Não foi possível carregar" onBack={backToOrder} />
-        <main className="mx-auto max-w-xl px-4 pb-10 pt-6">
-          <p className="rounded-2xl border-[1.5px] border-red-200 bg-red-50 p-4 text-[14px] font-bold text-red-700">
-            {editor.error ?? "OS não encontrada."}
-          </p>
-          <button
-            type="button"
-            onClick={() => void editor.reload()}
-            className="mt-3 h-[60px] w-full rounded-2xl bg-brand text-[17px] font-extrabold text-white"
-          >
-            Tentar de novo
-          </button>
-        </main>
-      </div>
+      <AppShell eyebrow="Ficha de vistoria" title="Não foi possível carregar" active="ficha">
+        <ErrorBlock
+          message={editor.error ?? "OS não encontrada."}
+          onRetry={() => void editor.reload()}
+        />
+      </AppShell>
     );
   }
 
   if (order.deletedAt !== null) {
     return (
-      <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow="Ficha de vistoria" title="OS excluída" onBack={() => navigate("/dashboard")} />
-      </div>
+      <AppShell eyebrow="Ficha de vistoria" title="OS excluída" active="ficha">
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="app-btn app-btn--primary"
+          style={{ width: "100%" }}
+        >
+          Voltar ao início
+        </button>
+      </AppShell>
     );
   }
 
@@ -122,55 +113,63 @@ export default function InspectionScreen() {
   // ---------- Sem ficha: escolher tipo = Criar ----------
   if (!draft) {
     return (
-      <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow={`OS ${order.number}`} title="Criar ficha de vistoria" onBack={backToOrder} />
-        <main className="mx-auto max-w-xl px-4 pb-10">
-          <section className="mt-6">
-            <h3 className="text-[19px] font-extrabold tracking-tight">Qual imóvel foi vistoriado?</h3>
-            <p className="mt-0.5 text-[14px] text-slate-500">
-              A ficha correta é carregada na ordem original do papel. Uma OS tem no máximo uma ficha.
-            </p>
-            {error ? (
-              <p className="mt-3 rounded-2xl border-[1.5px] border-red-200 bg-red-50 p-4 text-[14px] font-bold text-red-700">
-                {error}
-              </p>
-            ) : null}
-            <div className="mt-3 flex flex-col gap-2.5">
-              {PROPERTY_TYPES.map((t) => (
-                <TypeCard
-                  key={t.type}
-                  icon={t.icon}
-                  title={t.label}
-                  description={t.available ? t.description : "Ficha em preparação - entra sem mudar o app."}
-                  meta={t.available ? `${getFormDefinition(t.type).sections.length} etapas` : undefined}
-                  disabled={!t.available}
-                  onSelect={() => {
-                    setError("");
-                    store
-                      .startInspection(order.id, t.type as PropertyType)
-                      .then(() => editor.reload())
-                      .then(() => {
-                        setView("form");
-                        scrollTop();
-                      })
-                      .catch((e: unknown) => {
-                        setError(e instanceof DomainError ? e.message : repoErrorMessage(e));
-                      });
-                  }}
-                />
-              ))}
-            </div>
-          </section>
-        </main>
-      </div>
+      <AppShell
+        eyebrow={`OS ${order.number}`}
+        title="Criar ficha de vistoria"
+        description="A ficha correta é carregada na ordem original do papel. Uma OS tem no máximo uma ficha."
+        active="ficha"
+        actions={
+          <button type="button" onClick={backToOrder} className="app-btn app-btn--secondary app-btn--sm">
+            ‹ Voltar à OS
+          </button>
+        }
+      >
+        {error ? (
+          <p className="app-alert app-alert--error" role="alert" style={{ marginBottom: 12 }}>
+            {error}
+          </p>
+        ) : null}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {PROPERTY_TYPES.map((t) => (
+            <TypeCard
+              key={t.type}
+              icon={t.icon}
+              title={t.label}
+              description={t.available ? t.description : "Ficha em preparação."}
+              meta={t.available ? `${getFormDefinition(t.type).sections.length} etapas` : undefined}
+              disabled={!t.available}
+              onSelect={() => {
+                setError("");
+                store
+                  .startInspection(order.id, t.type as PropertyType)
+                  .then(() => editor.reload())
+                  .then(() => {
+                    setView("form");
+                    scrollTop();
+                  })
+                  .catch((e: unknown) => {
+                    setError(e instanceof DomainError ? e.message : repoErrorMessage(e));
+                  });
+              }}
+            />
+          ))}
+        </div>
+      </AppShell>
     );
   }
 
   if (!form) {
     return (
-      <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow={`OS ${order.number}`} title="Ficha indisponível" onBack={backToOrder} />
-      </div>
+      <AppShell eyebrow={`OS ${order.number}`} title="Ficha indisponível" active="ficha">
+        <button
+          type="button"
+          onClick={backToOrder}
+          className="app-btn app-btn--secondary"
+          style={{ width: "100%" }}
+        >
+          ‹ Voltar à OS
+        </button>
+      </AppShell>
     );
   }
 
@@ -180,9 +179,16 @@ export default function InspectionScreen() {
 
   if (!section) {
     return (
-      <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow={`OS ${order.number}`} title={form.title} onBack={backToOrder} />
-      </div>
+      <AppShell eyebrow={`OS ${order.number}`} title={form.title} active="ficha">
+        <button
+          type="button"
+          onClick={backToOrder}
+          className="app-btn app-btn--secondary"
+          style={{ width: "100%" }}
+        >
+          ‹ Voltar à OS
+        </button>
+      </AppShell>
     );
   }
 
@@ -196,13 +202,14 @@ export default function InspectionScreen() {
       <button
         type="button"
         onClick={() => void editor.flush().catch(() => undefined)}
-        className="mt-3 w-full rounded-xl border-[1.5px] border-red-200 bg-red-50 p-3 text-center text-[13.5px] font-bold text-red-700"
+        className="app-alert app-alert--error"
+        style={{ width: "100%", marginTop: 12, cursor: "pointer", textAlign: "center" }}
       >
         ⚠ {editor.saveError ?? "Erro ao salvar."} Toque para tentar de novo.
       </button>
     ) : editor.offlineNote ? (
-      <p className="mt-3 rounded-xl bg-amber-50 p-3 text-center text-[13.5px] font-bold text-amber-800">
-        Rascunho local restaurado - será sincronizado ao salvar.
+      <p className="app-alert app-alert--warn" style={{ marginTop: 12, textAlign: "center" }}>
+        Rascunho local restaurado. Será sincronizado ao salvar.
       </p>
     ) : null;
 
@@ -210,170 +217,179 @@ export default function InspectionScreen() {
   if (view === "review") {
     const ratio = completion.total ? completion.filled / completion.total : 0;
     return (
-      <div className="min-h-dvh bg-app text-ink">
-        <AppHeader
-          eyebrow={`OS ${order.number} · ${form.title} · revisão`}
-          title="Revisão da ficha"
-          onBack={() => {
-            editor.goSection(total - 1);
-            setView("form");
-            scrollTop();
-          }}
-          save={{ state: editor.saveState, time: editor.savedAtLabel ?? undefined }}
-        />
+      <AppShell
+        eyebrow={`OS ${order.number} · ${form.title} · revisão`}
+        title="Revisão da ficha"
+        active="ficha"
+        save={{ state: editor.saveState, time: editor.savedAtLabel ?? undefined }}
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              editor.goSection(total - 1);
+              setView("form");
+              scrollTop();
+            }}
+            className="app-btn app-btn--secondary app-btn--sm"
+          >
+            ‹ Voltar às etapas
+          </button>
+        }
+      >
         <ProgressHairline ratio={1} />
-        <main className="mx-auto max-w-xl px-4 pb-10">
-          {saveBanner}
-          <section className="animate-rise mt-4 rounded-2xl border border-slate-200/80 bg-white p-5">
-            <div className="flex items-center gap-4">
-              <CompletionRing ratio={ratio} />
-              <div className="min-w-0">
-                <h2 className="text-[19px] font-extrabold tracking-tight">Confira antes de finalizar</h2>
-                <p className="tnum mt-0.5 text-[13.5px] text-slate-500">
-                  {completion.filled} de {completion.total} campos preenchidos
-                </p>
-              </div>
-            </div>
-            <p className="mt-3 text-[13.5px] leading-snug text-slate-500">
-              Toque em <strong className="text-slate-700">Editar</strong> em qualquer seção para corrigir. Campos vazios não bloqueiam a conclusão.
-            </p>
-          </section>
-
-          <div className="mt-3 flex flex-col gap-2.5">
-            {form.sections.map((s, i) => {
-              const answers = draft.data[s.id] ?? {};
-              const rows = s.fields.filter((f) => {
-                if (f.type === "subtitle") return false;
-                if (/_det$/.test(f.id)) {
-                  const base = f.id.replace(/_det$/, "");
-                  if (s.fields.some((x) => x.id === base)) return false;
-                }
-                if (!isFilled(answers[f.id] as V)) return false;
-                return true;
-              });
-              return (
-                <article key={s.id} className="rounded-2xl border border-slate-200/80 bg-white p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="tnum text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                        {i + 1} · {s.title}
-                      </p>
-                      <p className="tnum text-[12px] font-semibold text-slate-400">
-                        {rows.length} {rows.length === 1 ? "item" : "itens"}
-                      </p>
-                    </div>
-                    {!readOnly ? (
-                      <button
-                        onClick={() => {
-                          editor.goSection(i);
-                          setView("form");
-                          scrollTop();
-                        }}
-                        className="h-11 shrink-0 rounded-xl border-[1.5px] border-slate-200 px-5 text-[15px] font-bold text-brand active:bg-blue-50"
-                      >
-                        Editar
-                      </button>
-                    ) : null}
-                  </div>
-                  {rows.length === 0 ? (
-                    <p className="mt-2 text-[14px] italic text-slate-400">Nada preenchido nesta etapa.</p>
-                  ) : (
-                    <dl className="mt-1 divide-y divide-slate-100">
-                      {rows.map((f) => {
-                        const raw = answers[f.id] as V;
-                        const det =
-                          (f.otherDetailId && (answers[f.otherDetailId] as string)) ||
-                          (answers[`${f.id}_det`] as string) ||
-                          "";
-                        return (
-                          <div key={f.id} className="py-2">
-                            <dt className="text-[13px] font-medium text-slate-500">{f.label}</dt>
-                            <dd className="text-[15.5px] font-semibold leading-snug">
-                              {formatAnswer(raw)}
-                              {det.trim() ? <span className="font-medium text-slate-500"> - {det.trim()}</span> : null}
-                            </dd>
-                          </div>
-                        );
-                      })}
-                    </dl>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-
-          <div className="mt-2">
-            <BottomNav
-              backLabel="Voltar"
-              nextLabel={readOnly ? "Voltar à OS" : finishing ? "Finalizando…" : "Finalizar ficha"}
-              nextHint={`OS ${order.number} · ${form.title}`}
-              onBack={() => {
-                editor.goSection(total - 1);
-                setView("form");
-                scrollTop();
-              }}
-              onNext={() => {
-                if (readOnly) {
-                  backToOrder();
-                  return;
-                }
-                if (editor.saveState === "error") return;
-                setFinishing(true);
-                setError("");
-                editor
-                  .finish()
-                  .then(() => {
-                    setView("done");
-                    scrollTop();
-                  })
-                  .catch((e: unknown) => {
-                    setError(e instanceof DomainError ? e.message : repoErrorMessage(e));
-                    scrollTop();
-                  })
-                  .finally(() => setFinishing(false));
-              }}
-            />
-            {error ? (
-              <p className="mt-2 rounded-xl border-[1.5px] border-red-200 bg-red-50 p-3 text-center text-[13.5px] font-bold text-red-700">
-                {error}
+        <div style={{ height: 12 }} />
+        {saveBanner}
+        <section className="app-card" style={{ marginTop: saveBanner ? 12 : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <CompletionRing ratio={ratio} />
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em" }}>
+                Confira antes de finalizar
+              </h2>
+              <p className="tnum" style={{ margin: "4px 0 0", fontSize: 13.5, color: "#5b6b82" }}>
+                {completion.filled} de {completion.total} campos preenchidos
               </p>
-            ) : null}
+            </div>
           </div>
-        </main>
-      </div>
+          <p style={{ margin: "12px 0 0", fontSize: 13.5, lineHeight: 1.55, color: "#5b6b82" }}>
+            Toque em <strong style={{ color: "#0f1e33" }}>Editar</strong> em qualquer seção para corrigir. Campos vazios não bloqueiam a conclusão.
+          </p>
+        </section>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+          {form.sections.map((s, i) => {
+            const answers = draft.data[s.id] ?? {};
+            const rows = s.fields.filter((f) => {
+              if (f.type === "subtitle") return false;
+              if (/_det$/.test(f.id)) {
+                const base = f.id.replace(/_det$/, "");
+                if (s.fields.some((x) => x.id === base)) return false;
+              }
+              if (!isFilled(answers[f.id] as V)) return false;
+              return true;
+            });
+            return (
+              <article key={s.id} className="app-card" style={{ padding: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p className="tnum app-section-label" style={{ margin: 0 }}>
+                      {i + 1} · {s.title}
+                    </p>
+                    <p className="tnum" style={{ margin: "2px 0 0", fontSize: 12, fontWeight: 600, color: "#8a97ad" }}>
+                      {rows.length} {rows.length === 1 ? "item" : "itens"}
+                    </p>
+                  </div>
+                  {!readOnly ? (
+                    <button
+                      onClick={() => {
+                        editor.goSection(i);
+                        setView("form");
+                        scrollTop();
+                      }}
+                      className="app-btn app-btn--secondary app-btn--sm"
+                    >
+                      Editar
+                    </button>
+                  ) : null}
+                </div>
+                {rows.length === 0 ? (
+                  <p style={{ margin: "8px 0 0", fontSize: 14, fontStyle: "italic", color: "#8a97ad" }}>
+                    Nada preenchido nesta etapa.
+                  </p>
+                ) : (
+                  <dl style={{ margin: "4px 0 0" }}>
+                    {rows.map((f) => {
+                      const raw = answers[f.id] as V;
+                      const det =
+                        (f.otherDetailId && (answers[f.otherDetailId] as string)) ||
+                        (answers[`${f.id}_det`] as string) ||
+                        "";
+                      return (
+                        <div key={f.id} className="app-detail">
+                          <dt className="app-detail-label" style={{ textTransform: "none", letterSpacing: 0, fontSize: 13, fontWeight: 500, color: "#5b6b82" }}>{f.label}</dt>
+                          <dd className="app-detail-value">
+                            {formatAnswer(raw)}
+                            {det.trim() ? <span style={{ fontWeight: 500, color: "#5b6b82" }}> ({det.trim()})</span> : null}
+                          </dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
+                )}
+              </article>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 8 }}>
+          <BottomNav
+            backLabel="Voltar"
+            nextLabel={readOnly ? "Voltar à OS" : finishing ? "Finalizando…" : "Finalizar ficha"}
+            nextHint={`OS ${order.number} · ${form.title}`}
+            onBack={() => {
+              editor.goSection(total - 1);
+              setView("form");
+              scrollTop();
+            }}
+            onNext={() => {
+              if (readOnly) {
+                backToOrder();
+                return;
+              }
+              if (editor.saveState === "error") return;
+              setFinishing(true);
+              setError("");
+              editor
+                .finish()
+                .then(() => {
+                  setView("done");
+                  scrollTop();
+                })
+                .catch((e: unknown) => {
+                  setError(e instanceof DomainError ? e.message : repoErrorMessage(e));
+                  scrollTop();
+                })
+                .finally(() => setFinishing(false));
+            }}
+          />
+          {error ? (
+            <p className="app-alert app-alert--error" role="alert" style={{ marginTop: 8, textAlign: "center" }}>
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </AppShell>
     );
   }
 
   // ================= DONE =================
   if (view === "done") {
     return (
-      <div className="min-h-dvh bg-app text-ink">
-        <AppHeader eyebrow={`OS ${order.number} · ${form.title}`} title="Ficha concluída" />
-        <main className="mx-auto max-w-xl px-4 pb-10">
-          <section className="animate-rise mt-6 rounded-3xl border border-slate-200/80 bg-white p-6 text-center">
-            <span className="mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full bg-green-100" aria-hidden>
-              <svg viewBox="0 0 24 20" className="h-7 w-7 text-green-700" fill="none" stroke="currentColor" strokeWidth="3">
-                <path d="M2 10.5l6.5 6.5L22 2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <h2 className="mt-3 text-[22px] font-extrabold tracking-tight">Dados coletados</h2>
-            <p className="mx-auto mt-1 max-w-[30ch] text-[14.5px] leading-snug text-slate-500">
-              A ficha foi vinculada à OS {order.number} e salva{store.backend === "supabase" ? " na nuvem" : " neste aparelho"}.
-            </p>
-            <div className="tnum mt-4 flex justify-center gap-2 text-[13px] font-bold">
-              <span className="rounded-full bg-slate-100 px-3.5 py-1.5 text-slate-600">OS {order.number}</span>
-              <span className="rounded-full bg-slate-100 px-3.5 py-1.5 text-slate-600">{form.title}</span>
-              <span className="rounded-full bg-slate-100 px-3.5 py-1.5 text-slate-600">{total} etapas</span>
-            </div>
-            <button
-              onClick={backToOrder}
-              className="mt-5 h-[60px] w-full rounded-2xl bg-brand text-[17px] font-extrabold text-white shadow-[0_2px_8px_rgba(29,78,216,0.35)] active:bg-brand-dark"
-            >
-              Voltar à OS {order.number}
-            </button>
-          </section>
-        </main>
-      </div>
+      <AppShell eyebrow={`OS ${order.number} · ${form.title}`} title="Ficha concluída" active="ficha">
+        <section className="app-card" style={{ textAlign: "center", padding: 28 }}>
+          <span style={{ margin: "0 auto", display: "flex", width: 72, height: 72, alignItems: "center", justifyContent: "center", borderRadius: "50%", background: "#e3f2e7" }} aria-hidden>
+            <svg viewBox="0 0 24 20" style={{ width: 28, height: 28, color: "#15803d" }} fill="none" stroke="currentColor" strokeWidth="3">
+              <path d="M2 10.5l6.5 6.5L22 2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <h2 style={{ margin: "12px 0 0", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>Dados coletados</h2>
+          <p style={{ margin: "6px auto 0", maxWidth: "34ch", fontSize: 14.5, lineHeight: 1.55, color: "#5b6b82" }}>
+            A ficha foi vinculada à OS {order.number} e salva{store.backend === "supabase" ? " na nuvem" : " neste aparelho"}.
+          </p>
+          <div className="tnum" style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8, marginTop: 16, fontSize: 13, fontWeight: 700 }}>
+            <span className="app-pill">OS {order.number}</span>
+            <span className="app-pill">{form.title}</span>
+            <span className="app-pill">{total} etapas</span>
+          </div>
+          <button
+            onClick={backToOrder}
+            className="app-btn app-btn--primary"
+            style={{ width: "100%", marginTop: 20 }}
+          >
+            Voltar à OS {order.number}
+          </button>
+        </section>
+      </AppShell>
     );
   }
 
@@ -384,68 +400,73 @@ export default function InspectionScreen() {
   const answeredCount = sectionFields.filter((f) => isFilled(draft.data[section.id]?.[f.id] as V)).length;
 
   return (
-    <div className="min-h-dvh bg-app text-ink">
-      <AppHeader
-        eyebrow={`OS ${order.number} · ${form.title} · vistoria`}
-        title={section.title}
-        onBack={() => {
-          if (sectionIndex === 0) backToOrder();
-          else editor.goSection(sectionIndex - 1);
-          scrollTop();
-        }}
-        save={{ state: editor.saveState, time: editor.savedAtLabel ?? undefined }}
-      />
+    <AppShell
+      eyebrow={`OS ${order.number} · ${form.title} · vistoria`}
+      title={section.title}
+      active="ficha"
+      save={{ state: editor.saveState, time: editor.savedAtLabel ?? undefined }}
+      actions={
+        <button
+          type="button"
+          onClick={() => {
+            if (sectionIndex === 0) backToOrder();
+            else editor.goSection(sectionIndex - 1);
+            scrollTop();
+          }}
+          className="app-btn app-btn--secondary app-btn--sm"
+        >
+          {sectionIndex === 0 ? "‹ OS" : "‹ Voltar"}
+        </button>
+      }
+    >
       <ProgressHairline ratio={(sectionIndex + 1) / total} />
-      <main className="mx-auto max-w-xl px-4 pb-10">
-        {readOnly ? (
-          <p className="mt-3 rounded-xl bg-slate-100 p-3 text-center text-[13.5px] font-bold text-slate-500">
-            OS {order.status === "completed" ? "concluída" : "cancelada"} - ficha somente leitura.
-          </p>
-        ) : null}
-        {saveBanner}
-        <div key={section.id} className="animate-rise">
-          <div className="pt-4">
-            <SectionHeader
-              step={sectionIndex + 1}
-              total={total}
-              title={section.title}
-              description={section.description}
-              answered={answeredCount}
-              ofFields={sectionFields.length}
+      <div style={{ height: 14 }} />
+      {readOnly ? (
+        <p className="app-alert app-alert--info" style={{ textAlign: "center" }}>
+          OS {order.status === "completed" ? "concluída" : "cancelada"}. Ficha somente leitura.
+        </p>
+      ) : null}
+      {saveBanner}
+      <div key={section.id} className="animate-rise" style={{ marginTop: readOnly || saveBanner ? 12 : 0 }}>
+        <SectionHeader
+          step={sectionIndex + 1}
+          total={total}
+          title={section.title}
+          description={section.description}
+          answered={answeredCount}
+          ofFields={sectionFields.length}
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 20 }}>
+          {section.fields.map((f) => (
+            <FieldRenderer
+              key={f.id}
+              field={f}
+              value={draft.data[section.id]?.[f.id] as V}
+              otherDetailValue={
+                f.otherDetailId ? (draft.data[section.id]?.[f.otherDetailId] as V) : undefined
+              }
+              onChange={(fieldId, v) => handleChange(section.id, fieldId, v)}
             />
-          </div>
-          <div className="flex flex-col gap-5 pt-5">
-            {section.fields.map((f) => (
-              <FieldRenderer
-                key={f.id}
-                field={f}
-                value={draft.data[section.id]?.[f.id] as V}
-                otherDetailValue={
-                  f.otherDetailId ? (draft.data[section.id]?.[f.otherDetailId] as V) : undefined
-                }
-                onChange={(fieldId, v) => handleChange(section.id, fieldId, v)}
-              />
-            ))}
-          </div>
+          ))}
         </div>
-        <div className="mt-6">
-          <BottomNav
-            onBack={() => {
-              if (sectionIndex === 0) backToOrder();
-              else editor.goSection(sectionIndex - 1);
-              scrollTop();
-            }}
-            onNext={() => {
-              if (isLast) setView("review");
-              else editor.goSection(sectionIndex + 1);
-              scrollTop();
-            }}
-            backLabel={sectionIndex === 0 ? "OS" : "Voltar"}
-            nextLabel={isLast ? "Revisar ficha" : "Continuar"}
-            nextHint={nextSection ? `Próxima: ${nextSection.title}` : `${total} etapas • revisar tudo`}
-          />
-        </div>
-      </main>
-    </div>
+      </div>
+      <div style={{ marginTop: 24 }}>
+        <BottomNav
+          onBack={() => {
+            if (sectionIndex === 0) backToOrder();
+            else editor.goSection(sectionIndex - 1);
+            scrollTop();
+          }}
+          onNext={() => {
+            if (isLast) setView("review");
+            else editor.goSection(sectionIndex + 1);
+            scrollTop();
+          }}
+          backLabel={sectionIndex === 0 ? "OS" : "Voltar"}
+          nextLabel={isLast ? "Revisar ficha" : "Continuar"}
+          nextHint={nextSection ? `Próxima: ${nextSection.title}` : `${total} etapas · revisar tudo`}
+        />
+      </div>
+    </AppShell>
   );
 }

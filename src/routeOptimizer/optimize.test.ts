@@ -33,7 +33,7 @@ describe("optimize (nearest-neighbor + 2-opt)", () => {
     expect(pathKm(order, m, true)).toBeLessThanOrEqual(naive);
   });
 
-  it("casos degenerados: 0–2 pontos", () => {
+  it("casos degenerados: 0 a 2 pontos", () => {
     expect(optimizeOrder(distanceMatrix([P(0, 0)]), { roundTrip: false, endFixed: false })).toEqual([0]);
     expect(
       optimizeOrder(distanceMatrix([P(0, 0), P(1, 1)]), { roundTrip: true, endFixed: false })

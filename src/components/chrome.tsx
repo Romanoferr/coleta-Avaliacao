@@ -1,8 +1,12 @@
 /**
- * Biblioteca visual do produto (ver docs/UX-FOCUS.md §4).
- * Header claro + progresso fino, navegação inferior fixa com safe-area,
- * cards de seleção, anel de conclusão. Sem gradientes, sem sombras decorativas.
+ * Sistema de navegação e primitivas da área logada.
+ * Mesma identidade do site institucional (tinta, azul de marca, raios,
+ * hierarquia tipográfica), adaptada para uso operacional diário.
+ * Desktop: sidebar fixa. Mobile: barra superior + trilho de navegação.
  */
+import { useState, type ReactNode } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../state/auth";
 
 export type SaveState = "saved" | "saving" | "pending" | "error";
 
@@ -28,11 +32,188 @@ export function SaveBadge({ state, time }: { state: SaveState; time?: string }) 
       aria-live="polite"
     >
       <span key={state + (time ?? "")} className={`h-2 w-2 rounded-full ${SAVE_DOT[state]}`} />
-      {state === "saved" ? `Salvo${time ? ` • ${time}` : ""}` : SAVE_TEXT[state]}
+      {state === "saved" ? `Salvo${time ? ` · ${time}` : ""}` : SAVE_TEXT[state]}
     </span>
   );
 }
 
+export function BrandMark({ size = 40 }: { size?: number }) {
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center rounded-xl bg-ink font-extrabold text-white"
+      style={{ width: size, height: size, fontSize: size * 0.52 }}
+      aria-hidden
+    >
+      ⌂
+    </span>
+  );
+}
+
+const NAV_ITEMS = [
+  { to: "/dashboard", label: "Início", icon: "⌂", end: true },
+  { to: "/rota", label: "Otimizar rota", icon: "◎", end: false },
+  { to: "/os/new", label: "Nova OS", icon: "+", end: false },
+];
+
+function AccountBlock({ compact = false }: { compact?: boolean }) {
+  const { user, displayName, signOut } = useAuth();
+  const navigate = useNavigate();
+  const initial = (user?.email ?? "?").slice(0, 1).toUpperCase();
+  return (
+    <div className={compact ? "app-account app-account--compact" : "app-account"}>
+      <span className="app-avatar" aria-hidden>
+        {initial}
+      </span>
+      <p className="app-account-name" title={user?.email ?? ""}>
+        {displayName ?? user?.email ?? "Conta"}
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          void signOut().then(() => navigate("/login", { replace: true }));
+        }}
+        className="app-account-exit"
+        aria-label="Sair da conta"
+      >
+        Sair
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Moldura de todas as telas logadas.
+ * `active` indica a seção atual para destacar na navegação.
+ */
+export function AppShell({
+  eyebrow,
+  title,
+  description,
+  actions,
+  active,
+  save,
+  children,
+  wide = false,
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  active: "home" | "route" | "new" | "os" | "ficha";
+  save?: { state: SaveState; time?: string };
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isNavActive = (to: string) =>
+    to === "/dashboard" ? active === "home" : to === "/rota" ? active === "route" : active === "new";
+
+  return (
+    <div className="app-shell">
+      {/* Sidebar desktop */}
+      <aside className="app-sidebar" aria-label="Navegação principal">
+        <div className="app-sidebar-brand">
+          <BrandMark size={38} />
+          <span className="app-sidebar-brand-text">
+            <strong>Coleta Avaliação</strong>
+            <span>Vistorias e avaliações</span>
+          </span>
+        </div>
+        <nav className="app-sidebar-nav" aria-label="Seções">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={() => `app-nav-item${isNavActive(item.to) ? " app-nav-item--active" : ""}`}
+              aria-current={isNavActive(item.to) ? "page" : undefined}
+            >
+              <span className="app-nav-icon" aria-hidden>
+                {item.icon}
+              </span>
+              {item.label}
+              {item.to === "/rota" ? <span className="app-nav-flag">Rota</span> : null}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="app-sidebar-foot">
+          <AccountBlock />
+          <p className="app-sidebar-hint">Seus dados ficam na sua conta.</p>
+        </div>
+      </aside>
+
+      <div className="app-main-col">
+        {/* Barra mobile */}
+        <header className="app-topbar">
+          <div className="app-topbar-row">
+            <BrandMark size={34} />
+            <div className="app-topbar-titles">
+              <p className="app-eyebrow">{eyebrow}</p>
+              <h1 className="app-topbar-title">{title}</h1>
+            </div>
+            {save ? <SaveBadge state={save.state} time={save.time} /> : null}
+            <button
+              type="button"
+              className="app-avatar-btn"
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? "Fechar menu da conta" : "Abrir menu da conta"}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <AccountAvatar />
+            </button>
+          </div>
+          {menuOpen ? (
+            <div className="app-topbar-menu">
+              <AccountBlock compact />
+            </div>
+          ) : null}
+          <nav className="app-tabrail" aria-label="Seções">
+            {NAV_ITEMS.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={() => setMenuOpen(false)}
+                className={() => `app-tab${isNavActive(item.to) ? " app-tab--active" : ""}`}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </header>
+
+        {/* Conteúdo */}
+        <main className={`app-content${wide ? " app-content--wide" : ""}`}>
+          <div className="app-pagehead">
+            <div className="app-pagehead-text">
+              <p className="app-eyebrow app-eyebrow--desktop">{eyebrow}</p>
+              <h1 className="app-pagehead-title">{title}</h1>
+              {description ? <p className="app-pagehead-desc">{description}</p> : null}
+              {save ? (
+                <div className="app-pagehead-save">
+                  <SaveBadge state={save.state} time={save.time} />
+                </div>
+              ) : null}
+            </div>
+            {actions ? <div className="app-pagehead-actions">{actions}</div> : null}
+          </div>
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function AccountAvatar() {
+  const { user } = useAuth();
+  return (
+    <span className="app-avatar" aria-hidden>
+      {(user?.email ?? "?").slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
+
+/** Cabeçalho simples das telas públicas de acesso (login, cadastro, senha). */
 export function AppHeader({
   eyebrow,
   title,
@@ -45,22 +226,23 @@ export function AppHeader({
   save?: { state: SaveState; time?: string };
 }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-xl items-center gap-1.5 px-3 py-2.5">
+    <header className="app-topbar" style={{ position: "static" }}>
+      <div className="app-topbar-row" style={{ paddingBottom: 10 }}>
         {onBack ? (
           <button
             onClick={onBack}
             aria-label="Voltar"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[26px] leading-none text-slate-600 transition-colors active:bg-slate-100"
+            className="app-btn app-btn--secondary app-btn--sm"
+            style={{ minHeight: 44, padding: "6px 14px" }}
           >
             ‹
           </button>
         ) : (
-          <BrandMark />
+          <BrandMark size={34} />
         )}
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">{eyebrow}</p>
-          <h1 className="truncate text-[17px] font-bold leading-tight text-ink">{title}</h1>
+        <div className="app-topbar-titles">
+          <p className="app-eyebrow">{eyebrow}</p>
+          <h1 className="app-topbar-title">{title}</h1>
         </div>
         {save && <SaveBadge state={save.state} time={save.time} />}
       </div>
@@ -68,21 +250,10 @@ export function AppHeader({
   );
 }
 
-export function BrandMark() {
-  return (
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink text-lg font-extrabold text-white">
-      ⌂
-    </span>
-  );
-}
-
 export function ProgressHairline({ ratio }: { ratio: number }) {
   return (
-    <div className="h-[3px] bg-slate-200/70" aria-hidden>
-      <div
-        className="h-full bg-brand transition-[width] duration-300 ease-out"
-        style={{ width: `${Math.round(ratio * 100)}%` }}
-      />
+    <div className="app-progress" aria-hidden>
+      <div className="app-progress-fill" style={{ width: `${Math.round(ratio * 100)}%` }} />
     </div>
   );
 }
@@ -104,23 +275,20 @@ export function SectionHeader({
 }) {
   const pct = Math.round((step / total) * 100);
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,30,51,0.05)]">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-brand tnum">
+    <div className="app-card app-sectionhead">
+      <div className="app-sectionhead-top">
+        <p className="app-eyebrow tnum">
           Etapa {step} de {total}
         </p>
-        <p className="text-[12px] font-bold text-slate-400 tnum">{pct}%</p>
+        <p className="app-sectionhead-pct tnum">{pct}%</p>
       </div>
-      <h2 className="mt-1 text-[22px] font-extrabold leading-tight tracking-tight">{title}</h2>
-      {description && <p className="mt-1 text-[14px] leading-snug text-slate-500">{description}</p>}
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className="h-full rounded-full bg-brand transition-[width] duration-300 ease-out"
-          style={{ width: `${pct}%` }}
-        />
+      <h2 className="app-sectionhead-title">{title}</h2>
+      {description && <p className="app-sectionhead-desc">{description}</p>}
+      <div className="app-meter" aria-hidden>
+        <div className="app-meter-fill" style={{ width: `${pct}%` }} />
       </div>
       {answered !== undefined && ofFields !== undefined && ofFields > 0 && (
-        <p className="mt-2 text-[12px] font-medium text-slate-400 tnum">
+        <p className="app-sectionhead-count tnum">
           {answered}/{ofFields} campos preenchidos
         </p>
       )}
@@ -142,24 +310,20 @@ export function BottomNav({
   nextHint?: string;
 }) {
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[max(0.9rem,env(safe-area-inset-bottom))] backdrop-blur">
-      <div className="mx-auto flex max-w-xl gap-2.5">
+    <div className="app-bottomnav">
+      <div className="app-bottomnav-inner">
         {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-[60px] shrink-0 basis-[30%] rounded-2xl border-[1.5px] border-slate-200 bg-white text-[17px] font-bold text-slate-600 transition-all focus-visible:outline-2 focus-visible:outline-brand active:scale-[0.98] active:bg-slate-50"
-          >
+          <button type="button" onClick={onBack} className="app-btn app-btn--secondary app-bottomnav-back">
             ‹ {backLabel}
           </button>
         )}
         <button
           type="button"
           onClick={onNext}
-          className="h-[60px] flex-1 rounded-2xl bg-brand text-white shadow-[0_2px_8px_rgba(29,78,216,0.35)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:scale-[0.99] active:bg-brand-dark"
+          className="app-btn app-btn--primary app-bottomnav-next"
         >
-          <span className="block text-[17px] font-extrabold leading-tight">{nextLabel}</span>
-          {nextHint && <span className="block truncate px-3 text-[12px] font-medium text-blue-100">{nextHint}</span>}
+          <span className="app-btn-label">{nextLabel}</span>
+          {nextHint && <span className="app-btn-hint">{nextHint}</span>}
         </button>
       </div>
     </div>
@@ -187,39 +351,24 @@ export function TypeCard({
       disabled={disabled}
       onClick={onSelect}
       aria-disabled={disabled}
-      className={`group flex w-full items-center gap-4 rounded-2xl border-[1.5px] p-4 text-left transition-all ${
-        disabled
-          ? "border-slate-200 bg-slate-50 opacity-70"
-          : "border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,30,51,0.05)] focus-visible:outline-2 focus-visible:outline-brand active:scale-[0.99] active:border-brand active:bg-blue-50/60"
-      }`}
+      className={`app-typecard${disabled ? " app-typecard--disabled" : ""}`}
     >
-      <span
-        className={`flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-2xl text-[30px] ${
-          disabled ? "bg-slate-100" : "bg-blue-50"
-        }`}
-        aria-hidden
-      >
+      <span className="app-typecard-icon" aria-hidden>
         {icon}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="text-[18px] font-extrabold tracking-tight">{title}</span>
+      <span className="app-typecard-text">
+        <span className="app-typecard-title">
+          {title}
           {disabled ? (
-            <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-              Em breve
-            </span>
+            <span className="app-pill app-pill--muted">Em breve</span>
           ) : (
-            meta && (
-              <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-green-700">
-                {meta}
-              </span>
-            )
+            meta && <span className="app-pill app-pill--ok">{meta}</span>
           )}
         </span>
-        <span className="mt-0.5 block text-[14px] leading-snug text-slate-500">{description}</span>
+        <span className="app-typecard-desc">{description}</span>
       </span>
       {!disabled && (
-        <span className="shrink-0 text-[24px] font-bold text-slate-300 transition-colors group-active:text-brand" aria-hidden>
+        <span className="app-typecard-arrow" aria-hidden>
           ›
         </span>
       )}
@@ -254,6 +403,35 @@ export function CompletionRing({ ratio, size = 76 }: { ratio: number; size?: num
         />
       </svg>
       <span className="absolute text-[17px] font-extrabold text-ink tnum">{pct}%</span>
+    </div>
+  );
+}
+
+/** Esqueleto de carregamento padronizado. */
+export function LoadingBlock({ rows = 3, label }: { rows?: number; label: string }) {
+  return (
+    <div role="status" aria-label={label}>
+      <div className="app-skeleton-list" aria-hidden>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="app-skeleton-row">
+            <div className="app-skeleton-line app-skeleton-line--title" />
+            <div className="app-skeleton-line" />
+          </div>
+        ))}
+      </div>
+      <p className="app-muted-center">{label}</p>
+    </div>
+  );
+}
+
+/** Erro com nova tentativa, mesmo padrão em todas as telas. */
+export function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="app-error" role="alert">
+      <p>{message}</p>
+      <button type="button" onClick={onRetry} className="app-btn app-btn--primary app-error-btn">
+        Tentar de novo
+      </button>
     </div>
   );
 }

@@ -6,7 +6,7 @@
  */
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppHeader } from "../components/chrome";
+import { AppShell, ErrorBlock, LoadingBlock } from "../components/chrome";
 import { EmptyState, StatusChip, formatDateBR, osInputCls, OsField } from "../components/os";
 import { todayLocalIso } from "../domain/ids";
 import { addressLine } from "../domain/serviceOrder";
@@ -215,83 +215,90 @@ export default function RouteOptimizer() {
   }, [result]);
 
   return (
-    <div className="min-h-dvh bg-app text-ink">
-      <AppHeader eyebrow="Rota do dia" title="Otimizar rota" onBack={() => navigate("/dashboard")} />
-      <main className="mx-auto max-w-xl px-4 pb-10">
-        <section className="pt-4">
-          <OsField label="Data das OSs">
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => resetForDate(e.target.value)}
-              className={osInputCls}
-              aria-label="Data das OSs"
-            />
-          </OsField>
-        </section>
+    <AppShell
+      eyebrow="Rota do dia"
+      title="Otimizar rota"
+      description="Escolha a data, selecione as OSs e defina origem e destino. A plataforma calcula a sequência de visitas."
+      active="route"
+      wide
+    >
+      <div className="app-routegrid">
+        <div>
+          <section className="app-card">
+            <OsField label="Data das OSs">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => resetForDate(e.target.value)}
+                className={`${osInputCls} tnum`}
+                aria-label="Data das OSs"
+              />
+            </OsField>
+          </section>
 
-        {!ready ? (
-          <p className="mt-4 text-center text-[13px] font-semibold text-slate-400">Carregando OSs…</p>
-        ) : dayOrders.length === 0 ? (
-          <div className="mt-4">
-            <EmptyState
-              title={`Nenhuma OS em ${formatDateBR(date)}`}
-              hint="Só entram na rota OSs desta data com endereço preenchido."
-            />
-            {noAddress.length > 0 && (
-              <p className="mt-2 rounded-2xl border-[1.5px] border-amber-300 bg-amber-50 p-4 text-[13.5px] font-bold text-amber-900">
-                ⚠ {noAddress.length} OS {noAddress.length === 1 ? "sem" : "sem"} endereço nesta data - preencha o
-                endereço na OS para incluí-la.
-              </p>
-            )}
+          {!ready ? (
+            <div style={{ marginTop: 12 }}>
+              <LoadingBlock rows={3} label="Carregando OSs…" />
+            </div>
+          ) : dayOrders.length === 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <EmptyState
+                title={`Nenhuma OS em ${formatDateBR(date)}`}
+                hint="Só entram na rota OSs desta data com endereço preenchido."
+              />
+              {noAddress.length > 0 && (
+                <p className="app-alert app-alert--warn" style={{ marginTop: 10 }}>
+                  ⚠ {noAddress.length} OS sem endereço nesta data. Preencha o
+                  endereço na OS para incluí-la.
+                </p>
+              )}
           </div>
         ) : (
           <>
-            <div className="mt-4 flex items-center justify-between">
-              <p className="tnum text-[13px] font-bold text-slate-500">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 14 }}>
+              <p className="tnum" style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#5b6b82" }}>
                 {formatDateBR(date)} · {selectedIds.length} de {dayOrders.length} selecionadas
               </p>
-              <div className="flex gap-2">
+              <div style={{ display: "flex", gap: 4 }}>
                 <button
                   type="button"
                   onClick={() => setSelected(dayOrders.map((o) => o.id))}
-                  className="text-[13px] font-bold text-brand underline underline-offset-2"
+                  className="app-btn app-btn--ghost app-btn--sm"
+                  style={{ minHeight: 36, padding: "4px 10px" }}
                 >
                   Todas
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelected([])}
-                  className="text-[13px] font-bold text-brand underline underline-offset-2"
+                  className="app-btn app-btn--ghost app-btn--sm"
+                  style={{ minHeight: 36, padding: "4px 10px" }}
                 >
                   Nenhuma
                 </button>
               </div>
             </div>
-            <ul className="mt-2 flex flex-col gap-2">
+            <ul className="app-selectlist" style={{ marginTop: 10 }}>
               {dayOrders.map((o) => {
                 const checked = selectedIds.includes(o.id);
                 return (
                   <li key={o.id}>
                     <label
-                      className={`flex cursor-pointer items-start gap-3 rounded-2xl border-[1.5px] bg-white p-4 transition-all active:scale-[0.99] ${
-                        checked ? "border-brand" : "border-slate-200"
-                      }`}
+                      className={`app-selectitem${checked ? " app-selectitem--checked" : ""}`}
                     >
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggle(o.id)}
-                        className="mt-1 h-6 w-6 shrink-0 accent-blue-700"
                         aria-label={`Incluir OS ${o.number}`}
                       />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="tnum text-[16px] font-extrabold">OS {o.number}</span>
+                      <span className="app-selectitem-main">
+                        <span className="app-selectitem-top">
+                          <span className="tnum app-selectitem-num">OS {o.number}</span>
                           <StatusChip status={o.status} />
                         </span>
-                        <span className="mt-0.5 block truncate text-[13.5px] text-slate-600">{addressLine(o)}</span>
-                        <span className="tnum mt-1 block text-[12.5px] font-semibold text-slate-500">
+                        <span className="app-selectitem-addr">{addressLine(o)}</span>
+                        <span className="tnum app-selectitem-sub">
                           {o.contractor}
                           {o.inspectionTime ? ` · ⏰ ${o.inspectionTime}` : ""}
                         </span>
@@ -302,12 +309,13 @@ export default function RouteOptimizer() {
               })}
             </ul>
             {noAddress.length > 0 && (
-              <p className="mt-2 rounded-2xl border-[1.5px] border-amber-300 bg-amber-50 p-4 text-[13.5px] font-bold text-amber-900">
-                ⚠ {noAddress.length} OS sem endereço nesta data - fora da rota até o endereço ser preenchido.
+              <p className="app-alert app-alert--warn" style={{ marginTop: 10 }}>
+                ⚠ {noAddress.length} OS sem endereço nesta data. Fora da rota até o endereço ser preenchido.
               </p>
             )}
 
-            <section className="mt-5 flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4">
+            <section className="app-card" style={{ marginTop: 12 }}>
+              <div className="app-fieldstack">
               <OsField label="Ponto inicial" hint="De onde você sai (ex.: base, casa, escritório)." required>
                 <input
                   value={startText}
@@ -317,17 +325,16 @@ export default function RouteOptimizer() {
                   autoComplete="street-address"
                 />
               </OsField>
-              <label className="flex cursor-pointer items-center gap-3">
+              <label className="app-check">
                 <input
                   type="checkbox"
                   checked={roundTrip}
                   onChange={(e) => setRoundTrip(e.target.checked)}
-                  className="h-6 w-6 shrink-0 accent-blue-700"
                 />
-                <span className="text-[15px] font-bold">Voltar ao ponto de partida</span>
+                Voltar ao ponto de partida
               </label>
               {!roundTrip && (
-                <OsField label="Destino final" hint="Opcional - vazio = rota aberta (termina na última OS).">
+                <OsField label="Destino final" hint="Opcional. Vazio = rota aberta (termina na última OS).">
                   <input
                     value={endText}
                     onChange={(e) => setEndText(e.target.value)}
@@ -348,105 +355,106 @@ export default function RouteOptimizer() {
                   max={480}
                   step={5}
                   onChange={(e) => setServiceMinutes(clampServiceMinutes(Number(e.target.value)))}
-                  className={osInputCls}
+                  className={`${osInputCls} tnum`}
                   aria-label="Tempo médio por atendimento em minutos"
                 />
               </OsField>
-              <p className="rounded-xl bg-slate-100 p-3 text-[13px] font-semibold text-slate-500">
-                🕐 A ordem inicial segue os horários agendados (do mais cedo para o mais tarde); paradas sem horário
-                entram pelo menor desvio. Ajuste com ↑↓ na lista abaixo.
+              <p className="app-alert app-alert--info" style={{ margin: 0 }}>
+                A ordem inicial segue os horários agendados, do mais cedo para o mais tarde. Paradas sem horário
+                entram pelo menor desvio. Ajuste com as setas na lista abaixo.
               </p>
               <button
                 type="button"
                 onClick={() => void optimize()}
                 disabled={phase === "geocoding" || phase === "optimizing" || selectedIds.length === 0}
-                className="h-[60px] w-full rounded-2xl bg-brand text-[17px] font-extrabold text-white shadow-[0_2px_8px_rgba(29,78,216,0.35)] active:bg-brand-dark disabled:opacity-60"
+                className="app-btn app-btn--primary"
+                style={{ width: "100%" }}
               >
                 {phase === "geocoding" || phase === "optimizing" ? "Otimizando…" : "Otimizar rota"}
               </button>
               {(phase === "geocoding" || phase === "optimizing") && (
                 <div role="status" aria-live="polite">
-                  <p className="text-center text-[13px] font-semibold text-slate-500">{progress}</p>
+                  <p className="app-muted-center">{progress}</p>
                   {progressPct !== null ? (
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden>
+                    <div className="app-meter" aria-hidden>
                       <div
-                        className="h-full rounded-full bg-brand transition-[width] duration-200"
+                        className="app-meter-fill"
                         style={{ width: `${Math.round(progressPct * 100)}%` }}
                       />
                     </div>
                   ) : (
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-                      <div className="h-full w-1/3 animate-pulse rounded-full bg-brand" />
+                    <div className="app-meter" aria-hidden>
+                      <div className="app-meter-fill" style={{ width: "35%" }} />
                     </div>
                   )}
                 </div>
               )}
+              </div>
             </section>
           </>
         )}
+        </div>
+        <div>
 
-        {error && (
-          <p className="mt-4 rounded-2xl border-[1.5px] border-red-200 bg-red-50 p-4 text-[14px] font-bold text-red-700" role="alert">
-            {error}
-          </p>
-        )}
+          {error ? <ErrorBlock message={error} onRetry={() => void optimize()} /> : null}
 
-        {invalid.length > 0 && (
-          <section className="mt-4 rounded-2xl border-[1.5px] border-amber-300 bg-amber-50 p-4" aria-label="Endereços não localizados">
-            <p className="text-[15px] font-extrabold text-amber-900">
-              ⚠ {invalid.length} OS não {invalid.length === 1 ? "pôde" : "puderam"} ser localizada
-            </p>
-            {invalid.map((inv) => (
-              <div key={inv.orderId} className="mt-2 flex items-center gap-2 rounded-xl bg-white p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="tnum text-[14px] font-extrabold">OS {inv.order.number}</p>
-                  <p className="truncate text-[13px] text-slate-500">{addressLine(inv.order)}</p>
+          {invalid.length > 0 && (
+            <section className="app-card" style={{ marginTop: 12 }} aria-label="Endereços não localizados">
+              <p className="app-alert app-alert--warn" style={{ margin: 0 }}>
+                ⚠ {invalid.length} OS não {invalid.length === 1 ? "pôde" : "puderam"} ser localizada
+              </p>
+              {invalid.map((inv) => (
+                <div key={inv.orderId} className="app-route-step" style={{ marginTop: 8 }}>
+                  <span className="app-route-step-main">
+                    <span className="tnum app-route-step-title">OS {inv.order.number}</span>
+                    <span className="app-route-step-sub">{addressLine(inv.order)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/os/${inv.orderId}/edit`)}
+                    className="app-btn app-btn--secondary app-btn--sm"
+                    style={{ flexShrink: 0 }}
+                  >
+                    Corrigir endereço
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/os/${inv.orderId}/edit`)}
-                  className="h-11 shrink-0 rounded-xl border-[1.5px] border-slate-200 px-4 text-[14px] font-bold text-slate-600 active:bg-slate-50"
-                >
-                  Corrigir endereço
-                </button>
-              </div>
-            ))}
-            <p className="mt-2 text-[13px] font-semibold text-amber-900">
-              A otimização seguiu sem {invalid.length === 1 ? "ela" : "elas"}. Corrija e toque em Recalcular.
-            </p>
-          </section>
-        )}
+              ))}
+              <p className="app-muted-center" style={{ textAlign: "left" }}>
+                A otimização seguiu sem {invalid.length === 1 ? "ela" : "elas"}. Corrija e toque em Recalcular.
+              </p>
+            </section>
+          )}
 
-        {result && (
-          <section className="mt-4" aria-label="Rota otimizada" aria-live="polite">
-            <div className="rounded-3xl bg-ink p-5 text-white">
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">Rota otimizada</p>
-              <p className="tnum mt-1 text-[15px] font-bold">
+          {result && (
+          <section style={{ marginTop: 12 }} aria-label="Rota otimizada" aria-live="polite">
+            <div className="app-route-result">
+              <p className="app-route-result-kicker">Rota otimizada</p>
+              <p className="tnum app-route-result-main">
                 {formatKm(result.totalKm)} · {formatMinutes(result.totalMinutes)} · {result.stops.length}{" "}
                 {result.stops.length === 1 ? "parada" : "paradas"}
               </p>
-              <p className="mt-1 text-[12.5px] font-semibold text-slate-300">
-                {result.roadBased ? "🛣️ Distância/tempo pela malha viária (OSRM)." : "📏 Estimativa local (sem roteador)."}
+              <p className="app-route-result-sub">
+                {result.roadBased ? "Distância e tempo pela malha viária (OSRM)." : "Estimativa local (sem roteador)."}
               </p>
               {result.suggestedDeparture && (
-                <p className="mt-2 rounded-xl bg-blue-500/20 p-3 text-[13px] font-bold text-blue-100">
-                  🕐 Saia até às {result.suggestedDeparture} para cumprir o primeiro horário (considerando{" "}
+                <p className="app-route-note">
+                  Saia até às {result.suggestedDeparture} para cumprir o primeiro horário (considerando{" "}
                   {clampServiceMinutes(serviceMinutes)} min de atendimento por parada).
                 </p>
               )}
               {result.timeWarnings.map((w, i) => (
-                <p key={i} className="mt-2 rounded-xl bg-amber-500/20 p-3 text-[13px] font-bold text-amber-200">
+                <p key={i} className="app-route-warn">
                   ⏰ {w}
                 </p>
               ))}
               {result.notes.map((n, i) => (
-                <p key={i} className="mt-1.5 text-[12.5px] font-semibold text-slate-300">
+                <p key={i} className="app-route-info">
                   ℹ️ {n}
                 </p>
               ))}
               {segments.length > 1 && (
-                <p className="mt-1.5 text-[12.5px] font-semibold text-slate-300">
-                  ℹ️ Rota com muitas paradas: o Maps abre em {segments.length} trechos navegáveis - a rota completa
+                <p className="app-route-info">
+                  Rota com muitas paradas: o Maps abre em {segments.length} trechos navegáveis. A rota completa
                   (ordem otimizada) está preservada abaixo.
                 </p>
               )}
@@ -454,7 +462,7 @@ export default function RouteOptimizer() {
 
             <RouteSchema legs={result.legs} />
 
-            <ol className="mt-3 flex flex-col gap-1.5" aria-label="Ordem das paradas (ajustável)">
+            <ol className="app-route-steps" aria-label="Ordem das paradas (ajustável)">
               {result.legs.map((leg, i) => {
                 const tl = leg.orderId ? result.timeline.find((t) => t.orderId === leg.orderId) : undefined;
                 // Posição entre as OSs (ignora início/fim) para os botões ↑↓.
@@ -462,28 +470,24 @@ export default function RouteOptimizer() {
                 return (
                 <li
                   key={`${leg.orderId ?? leg.label}-${i}`}
-                  className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3"
+                  className="app-route-step"
                 >
                   <span
-                    className={`tnum flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[14px] font-extrabold ${
-                      leg.orderId ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
-                    }`}
+                    className={`tnum app-route-num${leg.orderId ? "" : " app-route-num--point"}`}
                     aria-hidden
                   >
                     {leg.orderId ? i : i === 0 ? "📍" : "🏁"}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-extrabold">{leg.label}</span>
+                  <span className="app-route-step-main">
+                    <span className="app-route-step-title">{leg.label}</span>
                     {leg.orderId && (
-                      <span className="block truncate text-[13px] text-slate-500">
+                      <span className="app-route-step-sub">
                         {addressLine(result.stops.find((s) => s.orderId === leg.orderId)?.order as ServiceOrder)}
                       </span>
                     )}
                     {tl?.scheduled && (
                       <span
-                        className={`tnum mt-1 inline-block rounded-full px-2.5 py-0.5 text-[12px] font-bold ${
-                          tl.lateBy > 0 ? "bg-red-50 text-red-700" : "bg-blue-50 text-brand"
-                        }`}
+                        className={`tnum app-pill app-route-eta${tl.lateBy > 0 ? " app-route-eta--late" : " app-pill--info"}`}
                       >
                         ⏰ {tl.scheduled} · chegada ~{tl.eta}
                         {tl.lateBy > 0 ? ` · ⚠ +${tl.lateBy}min` : ""}
@@ -491,13 +495,12 @@ export default function RouteOptimizer() {
                     )}
                   </span>
                   {stopIdx >= 0 && (
-                    <span className="flex shrink-0 flex-col gap-1" role="group" aria-label={`Reordenar ${leg.label}`}>
+                    <span className="app-route-move" role="group" aria-label={`Reordenar ${leg.label}`}>
                       <button
                         type="button"
                         disabled={recalculating || stopIdx === 0}
                         onClick={() => void moveStop(leg.orderId as string, -1)}
                         aria-label={`Subir ${leg.label}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] border-slate-200 text-[16px] font-bold text-slate-600 active:bg-slate-50 disabled:opacity-30"
                       >
                         ↑
                       </button>
@@ -506,7 +509,6 @@ export default function RouteOptimizer() {
                         disabled={recalculating || stopIdx === result.stops.length - 1}
                         onClick={() => void moveStop(leg.orderId as string, 1)}
                         aria-label={`Descer ${leg.label}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] border-slate-200 text-[16px] font-bold text-slate-600 active:bg-slate-50 disabled:opacity-30"
                       >
                         ↓
                       </button>
@@ -517,33 +519,35 @@ export default function RouteOptimizer() {
               })}
             </ol>
             {recalculating && (
-              <p className="mt-2 text-center text-[13px] font-semibold text-slate-500" role="status">
+              <p className="app-muted-center" role="status">
                 Recalculando métricas…
               </p>
             )}
 
-            <div className="mt-3 flex flex-col gap-2">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
               {segments.length === 1 && (
                 <a
                   href={segments[0].url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex h-[60px] items-center justify-center rounded-2xl bg-green-700 text-[17px] font-extrabold text-white active:bg-green-800"
+                  className="app-btn app-btn--maps"
+                  style={{ width: "100%", flexDirection: "row" }}
                 >
                   Abrir no Google Maps
                 </a>
               )}
               {segments.length > 1 && (
-                <div className="rounded-2xl border border-slate-200/80 bg-white p-3">
-                  <p className="text-[14px] font-extrabold">Navegar por trechos</p>
-                  <div className="mt-2 flex flex-col gap-1.5">
+                <div className="app-card" style={{ padding: 14 }}>
+                  <p className="app-card-title" style={{ fontSize: 15 }}>Navegar por trechos</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
                     {segments.map((s) => (
                       <a
                         key={s.index}
                         href={s.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex min-h-[52px] items-center justify-center rounded-xl bg-green-700 px-3 py-2 text-center text-[15px] font-extrabold text-white active:bg-green-800"
+                        className="app-btn app-btn--maps app-btn--sm"
+                        style={{ width: "100%", flexDirection: "row", textDecoration: "none" }}
                       >
                         {s.label}
                       </a>
@@ -554,15 +558,17 @@ export default function RouteOptimizer() {
               <button
                 type="button"
                 onClick={() => void optimize()}
-                className="h-[56px] w-full rounded-2xl border-[1.5px] border-slate-200 bg-white text-[16px] font-bold text-slate-600 active:bg-slate-50"
+                className="app-btn app-btn--secondary"
+                style={{ width: "100%" }}
               >
                 Recalcular
               </button>
             </div>
           </section>
         )}
-      </main>
-    </div>
+        </div>
+      </div>
+    </AppShell>
   );
 }
 
@@ -570,8 +576,8 @@ export default function RouteOptimizer() {
 function RouteSchema({ legs }: { legs: OptimizedRoute["legs"] }) {
   const pts = useMemo(() => project(legs.map((l) => l.point)), [legs]);
   return (
-    <figure className="mt-3 rounded-2xl border border-slate-200/80 bg-white p-3" aria-label="Esquema da rota">
-      <svg viewBox="0 0 100 62" className="h-44 w-full" role="img" aria-label="Esquema numerado da rota">
+    <figure className="app-card" style={{ marginTop: 12, padding: 14 }} aria-label="Esquema da rota">
+      <svg viewBox="0 0 100 62" style={{ height: 176, width: "100%" }} role="img" aria-label="Esquema numerado da rota">
         {pts.length > 1 && (
           <polyline
             points={pts.map((p) => `${p.x},${p.y}`).join(" ")}
@@ -604,8 +610,8 @@ function RouteSchema({ legs }: { legs: OptimizedRoute["legs"] }) {
           );
         })}
       </svg>
-      <figcaption className="mt-1 text-center text-[12px] font-semibold text-slate-400">
-        Esquema da ordem calculada - use o Google Maps para navegar.
+      <figcaption className="app-muted-center">
+        Esquema da ordem calculada. Use o Google Maps para navegar.
       </figcaption>
     </figure>
   );
