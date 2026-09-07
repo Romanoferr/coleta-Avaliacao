@@ -53,6 +53,7 @@ const NAV_ITEMS = [
   { to: "/dashboard", label: "Início", icon: "⌂", end: true },
   { to: "/rota", label: "Otimizar rota", icon: "◎", end: false },
   { to: "/os/new", label: "Nova OS", icon: "+", end: false },
+  { to: "/assinatura", label: "Assinatura", icon: "R$", end: true },
 ];
 
 function AccountBlock({ compact = false }: { compact?: boolean }) {
@@ -99,14 +100,19 @@ export function AppShell({
   title: string;
   description?: string;
   actions?: ReactNode;
-  active: "home" | "route" | "new" | "os" | "ficha";
+  active: "home" | "route" | "new" | "os" | "ficha" | "billing";
   save?: { state: SaveState; time?: string };
   children: ReactNode;
   wide?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const isNavActive = (to: string) =>
-    to === "/dashboard" ? active === "home" : to === "/rota" ? active === "route" : active === "new";
+  const isNavActive = (to: string) => {
+    if (to === "/dashboard") return active === "home";
+    if (to === "/rota") return active === "route";
+    if (to === "/os/new") return active === "new";
+    if (to === "/assinatura") return active === "billing";
+    return false;
+  };
 
   return (
     <div className="app-shell">

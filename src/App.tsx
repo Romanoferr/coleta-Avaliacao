@@ -20,6 +20,7 @@ import RouteOptimizer from "./screens/RouteOptimizer";
 import Signup from "./screens/Signup";
 import Plans from "./screens/Plans";
 import Subscription from "./screens/Subscription";
+import { effectiveAccess } from "./domain/billing";
 import { useAuth } from "./state/auth";
 import { useBilling } from "./state/billing";
 
@@ -46,7 +47,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
  */
 function RequireSubscription({ children }: { children: ReactNode }) {
   const { status: authStatus } = useAuth();
-  const { status, loading } = useBilling();
+  const { status, loading, cancelAtPeriodEnd, currentPeriodEnd } = useBilling();
   if (authStatus === "local") return <>{children}</>;
   if (loading) {
     return (
@@ -57,7 +58,7 @@ function RequireSubscription({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (status === "active" || status === "trialing" || status === "past_due") return <>{children}</>;
+  if (effectiveAccess(status, cancelAtPeriodEnd, currentPeriodEnd)) return <>{children}</>;
   return <Navigate to="/planos" replace />;
 }
 

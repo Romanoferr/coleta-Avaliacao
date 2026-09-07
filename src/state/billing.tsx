@@ -14,6 +14,9 @@ interface Billing {
   planId: PlanId | null;
   loading: boolean;
   provider: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  externalSubscriptionId: string | null;
   refresh: () => Promise<void>;
 }
 
@@ -24,6 +27,9 @@ export function BillingProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<BillingStatus>("none");
   const [planId, setPlanId] = useState<PlanId | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
+  const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [externalSubscriptionId, setExternalSubscriptionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -31,6 +37,9 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       setStatus("none");
       setPlanId(null);
       setProvider(null);
+      setCurrentPeriodEnd(null);
+      setCancelAtPeriodEnd(false);
+      setExternalSubscriptionId(null);
       return;
     }
     if (!isSupabaseConfigured()) return;
@@ -52,20 +61,33 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       };
       const { data } = await sb
         .from("billing_subscriptions")
-        .select("status, plan_id, provider")
+        .select("status, plan_id, provider, current_period_end, cancel_at_period_end, external_subscription_id")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const row = data as { status?: BillingStatus; plan_id?: PlanId; provider?: string } | null;
+      const row = data as {
+        status?: BillingStatus;
+        plan_id?: PlanId;
+        provider?: string;
+        current_period_end?: string | null;
+        cancel_at_period_end?: boolean;
+        external_subscription_id?: string | null;
+      } | null;
       if (row) {
         setStatus(row.status ?? "none");
         setPlanId(row.plan_id ?? null);
         setProvider(row.provider ?? null);
+        setCurrentPeriodEnd(row.current_period_end ?? null);
+        setCancelAtPeriodEnd(Boolean(row.cancel_at_period_end));
+        setExternalSubscriptionId(row.external_subscription_id ?? null);
       } else {
         setStatus("none");
         setPlanId(null);
         setProvider(null);
+        setCurrentPeriodEnd(null);
+        setCancelAtPeriodEnd(false);
+        setExternalSubscriptionId(null);
       }
     } finally {
       setLoading(false);
@@ -77,8 +99,17 @@ export function BillingProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ status, planId, loading, provider, refresh }),
-    [status, planId, loading, provider, refresh]
+    () => ({
+      status,
+      planId,
+      loading,
+      provider,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+      externalSubscriptionId,
+      refresh,
+    }),
+    [status, planId, loading, provider, currentPeriodEnd, cancelAtPeriodEnd, externalSubscriptionId, refresh]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
