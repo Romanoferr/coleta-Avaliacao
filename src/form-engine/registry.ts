@@ -1,5 +1,6 @@
 import type { FormDefinition, PropertyType } from "../form-engine/types";
 import { apartmentForm } from "../forms/apartment";
+import { houseForm } from "../forms/house";
 import { landForm } from "../forms/land";
 
 export interface PropertyTypeMeta {
@@ -17,8 +18,7 @@ export const PROPERTY_TYPES: PropertyTypeMeta[] = [
     label: "Casa",
     icon: "🏠",
     description: "Unidade isolada",
-    available: false,
-    availableNote: "Ficha em breve — arquitetura pronta",
+    available: true,
   },
   {
     type: "apartment",
@@ -38,9 +38,8 @@ export const PROPERTY_TYPES: PropertyTypeMeta[] = [
 
 const forms: Record<string, FormDefinition> = {
   apartment: apartmentForm,
+  house: houseForm,
   land: landForm,
-  // house: será registrado aqui quando `src/forms/house.ts` existir.
-  // Ex.: import { houseForm } from "../forms/house"; forms.house = houseForm;
 };
 
 export function getFormDefinition(type: PropertyType): FormDefinition {
