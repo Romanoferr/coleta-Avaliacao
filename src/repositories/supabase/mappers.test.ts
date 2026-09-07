@@ -24,6 +24,7 @@ const baseOrder: OrderRow = {
   latitude: null,
   longitude: null,
   geocoded_at: null,
+  geocoded_address: null,
 };
 
 describe("mappers supabase", () => {

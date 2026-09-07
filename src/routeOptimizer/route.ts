@@ -1,11 +1,36 @@
 /**
- * Controlador da otimização: âncoras de horário → OSRM /trip (malha viária)
- * → fallback heurístico 2-opt. Puro e testável (rede injetável).
+ * Controlador da otimização: ordem inicial CRONOLÓGICA (agendamento, do mais
+ * cedo para o mais tarde) + medição na malha viária (OSRM /route) com fallback
+ * em linha reta. Puro e testável (rede injetável).
+ * REGRA: a ordem inicial nunca é "otimizada" por deslocamento — o cliente
+ * ajusta na mão (↑↓) se quiser. Horários servem para ordenar (cronologia),
+ * exibir e prever chegadas. `serviceMinutes` (configurável) vale só para
+ * previsão de chegadas/avisos.
+ * (Os módulos osrm /trip e optimize seguem disponíveis, mas o fluxo atual
+ * não reordena automaticamente por deslocamento.)
  */
-import { estimateMinutes, haversineKm } from "./geo";
-import { distanceMatrix, optimizeOrder, pathKm } from "./optimize";
-import { OsrmError, fetchRouteMetrics, fetchTrip } from "./osrm";
-import type { GeoPoint, OptimizedRoute, RouteConfig, RouteEndpoint, RouteStop } from "./types";
+import { estimateMinutes, haversineKm, orderAddressText } from "./geo";
+import { distanceMatrix, pathKm } from "./optimize";
+import { fetchRouteMetrics } from "./osrm";
+import type { GeoPoint, OptimizedRoute, RouteConfig, RouteEndpoint, RouteStop, TimelineEntry } from "./types";
+
+/** Atendimento médio padrão por parada (vistoria + deslocamento interno). */
+export const SERVICE_MINUTES_PER_STOP = 50;
+
+export function timeToMinutes(hhmm: string): number {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm.trim());
+  if (!m) return 0;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+export function minutesToTime(min: number): string {
+  const t = ((Math.round(min) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}
+
+export function travelMinutes(a: GeoPoint, b: GeoPoint): number {
+  return estimateMinutes(haversineKm(a, b));
+}
 
 export interface ResolvedInput {
   config: RouteConfig;
@@ -16,50 +41,89 @@ function legLabel(stop: RouteStop): string {
   return `OS ${stop.order.number}`;
 }
 
-/** OS com horário viram âncoras cronológicas; livres entram por best-insertion. */
-export function applyTimeAnchors(stops: RouteStop[], start: GeoPoint): RouteStop[] {
-  const timed = stops.filter((s) => s.order.inspectionTime).sort((a, b) =>
-    (a.order.inspectionTime as string) < (b.order.inspectionTime as string) ? -1 : 1
-  );
-  const free = stops.filter((s) => !s.order.inspectionTime);
-  if (timed.length < 2 || free.length === 0) return stops;
-
-  const ordered: RouteStop[] = [...timed];
-  for (const f of free) {
-    let bestIdx = ordered.length;
-    let bestCost = Infinity;
-    for (let i = 0; i <= ordered.length; i++) {
-      const prev = i === 0 ? start : ordered[i - 1].point;
-      const next = i === ordered.length ? null : ordered[i].point;
-      const cost =
-        haversineKm(prev, f.point) + (next ? haversineKm(f.point, next) - haversineKm(prev, next) : 0);
-      if (cost < bestCost) {
-        bestCost = cost;
-        bestIdx = i;
-      }
-    }
-    ordered.splice(bestIdx, 0, f);
-  }
-  return ordered;
+export interface Timeline {
+  entries: TimelineEntry[];
+  /** Minutos desde 00:00 sugeridos para sair; null sem horários. */
+  suggestedDepartureMin: number | null;
+  totalLate: number;
 }
 
-/** Avisos quando a ordem calculada conflita com horários agendados. */
-export function detectTimeWarnings(stopsInOrder: RouteStop[]): string[] {
-  const timed = stopsInOrder
-    .map((s, i) => ({ s, i }))
-    .filter((x) => x.s.order.inspectionTime);
-  for (let k = 0; k < timed.length - 1; k++) {
-    const a = timed[k].s.order.inspectionTime as string;
-    const b = timed[k + 1].s.order.inspectionTime as string;
-    if (a > b) {
-      return [
-        `A ordem otimizada passa na OS ${timed[k + 1].s.order.number} (${b}) antes da OS ${
-          timed[k].s.order.number
-        } (${a}). Ative "Respeitar horários" para priorizar a agenda.`,
-      ];
+/**
+ * Simula o cronograma: deslocamento estimado + `serviceMinutes` de
+ * atendimento por parada. Ancora a saída para chegar ao 1º horário em ponto
+ * (aguardar é permitido: nunca se "adianta" um horário). Sem OS com horário,
+ * não há o que simular. NÃO reordena nada — só relata.
+ */
+export function simulateTimeline(
+  stops: RouteStop[],
+  start: GeoPoint,
+  serviceMinutes: number = SERVICE_MINUTES_PER_STOP
+): Timeline {
+  const scheduled = (s: RouteStop): number | null =>
+    s.order.inspectionTime ? timeToMinutes(s.order.inspectionTime) : null;
+  const firstTimed = stops.find((s) => scheduled(s) !== null);
+  if (!firstTimed) return { entries: [], suggestedDepartureMin: null, totalLate: 0 };
+
+  // Custo (desloc + atendimento) até o 1º horário → sugere a saída.
+  let lead = 0;
+  let prev = start;
+  for (const s of stops) {
+    const t = travelMinutes(prev, s.point);
+    if (s === firstTimed) {
+      lead += t;
+      break;
     }
+    lead += t + serviceMinutes;
+    prev = s.point;
   }
-  return [];
+  const departure = (scheduled(firstTimed) as number) - lead;
+
+  const entries: TimelineEntry[] = [];
+  let totalLate = 0;
+  let clock = departure;
+  prev = start;
+  for (const s of stops) {
+    const arrival = clock + travelMinutes(prev, s.point);
+    prev = s.point;
+    const sch = scheduled(s);
+    const lateBy = sch !== null ? Math.max(0, Math.round(arrival - sch)) : 0;
+    totalLate += lateBy;
+    if (sch !== null) clock = Math.max(arrival, sch);
+    else clock = arrival;
+    clock += serviceMinutes;
+    entries.push({
+      orderId: s.orderId,
+      number: s.order.number,
+      eta: minutesToTime(arrival),
+      scheduled: sch !== null && s.order.inspectionTime ? s.order.inspectionTime.slice(0, 5) : null,
+      lateBy,
+    });
+  }
+  return { entries, suggestedDepartureMin: Math.round(departure), totalLate };
+}
+
+/** Avisos de atraso previsto (horários são só exibidos; a ordem é por deslocamento). */
+export function delayWarnings(timeline: Timeline, serviceMinutes: number): string[] {
+  return timeline.entries
+    .filter((e) => e.lateBy > 0 && e.scheduled)
+    .map(
+      (e) =>
+        `Conflito de horário: OS ${e.number} (${e.scheduled}) — chegada prevista ~${e.eta}, ~${e.lateBy} min após o horário (considerando ~${serviceMinutes} min de atendimento por parada).`
+    );
+}
+
+/** Monta cronograma + avisos para uma ordem final (qualquer engine). */
+function buildSchedule(
+  ordered: RouteStop[],
+  start: GeoPoint,
+  serviceMinutes: number
+): { timeline: TimelineEntry[]; suggestedDeparture: string | null; timeWarnings: string[] } {
+  const timeline = simulateTimeline(ordered, start, serviceMinutes);
+  return {
+    timeline: timeline.entries,
+    suggestedDeparture: timeline.suggestedDepartureMin !== null ? minutesToTime(timeline.suggestedDepartureMin) : null,
+    timeWarnings: delayWarnings(timeline, serviceMinutes),
+  };
 }
 
 function buildLegs(
@@ -69,11 +133,18 @@ function buildLegs(
   roundTrip: boolean
 ): OptimizedRoute["legs"] {
   const legs: OptimizedRoute["legs"] = [
-    { label: start.label || "Ponto inicial", point: start.point, orderId: null },
-    ...ordered.map((s) => ({ label: legLabel(s), point: s.point, orderId: s.orderId })),
+    { label: start.label || "Ponto inicial", point: start.point, orderId: null, address: start.address },
+    ...ordered.map((s) => ({
+      label: legLabel(s),
+      point: s.point,
+      orderId: s.orderId,
+      address: orderAddressText(s.order),
+    })),
   ];
-  if (roundTrip) legs.push({ label: start.label || "Ponto inicial", point: start.point, orderId: null });
-  else if (end) legs.push({ label: end.label || "Destino final", point: end.point, orderId: null });
+  if (roundTrip)
+    legs.push({ label: start.label || "Ponto inicial", point: start.point, orderId: null, address: start.address });
+  else if (end)
+    legs.push({ label: end.label || "Destino final", point: end.point, orderId: null, address: end.address });
   return legs;
 }
 
@@ -82,6 +153,43 @@ function fullPoints(ordered: RouteStop[], start: GeoPoint, end: GeoPoint | null,
   if (roundTrip) pts.push(start);
   else if (end) pts.push(end);
   return pts;
+}
+
+/**
+ * Ordem inicial da rota: agendamento do mais cedo para o mais tarde.
+ * Paradas sem horário entram onde geram o menor desvio (só deslocamento,
+ * sem mexer na sequência cronológica). Sem nenhum horário, mantém a
+ * ordem de entrada (determinístico e transparente).
+ */
+export function initialOrderBySchedule(stops: RouteStop[], start: GeoPoint): RouteStop[] {
+  const timed = stops
+    .filter((s) => s.order.inspectionTime)
+    .sort((a, b) => {
+      const ta = a.order.inspectionTime as string;
+      const tb = b.order.inspectionTime as string;
+      if (ta !== tb) return ta < tb ? -1 : 1;
+      return a.order.number.localeCompare(b.order.number, "pt-BR");
+    });
+  const free = stops.filter((s) => !s.order.inspectionTime);
+  if (timed.length === 0) return [...stops];
+
+  const ordered: RouteStop[] = [...timed];
+  for (const f of free) {
+    let bestIdx = ordered.length;
+    let bestExtra = Infinity;
+    for (let i = 0; i <= ordered.length; i++) {
+      const prev = i === 0 ? start : ordered[i - 1].point;
+      const next = i === ordered.length ? null : ordered[i].point;
+      const extra =
+        haversineKm(prev, f.point) + (next ? haversineKm(f.point, next) - haversineKm(prev, next) : 0);
+      if (extra < bestExtra) {
+        bestExtra = extra;
+        bestIdx = i;
+      }
+    }
+    ordered.splice(bestIdx, 0, f);
+  }
+  return ordered;
 }
 
 export async function computeOptimizedRoute(
@@ -97,94 +205,31 @@ export async function computeOptimizedRoute(
 
   const endPoint = config.roundTrip ? null : config.end?.point ?? null;
 
-  // 1 OS: sem otimização — só mede o deslocamento.
-  if (stops.length === 1) {
-    const pts = fullPoints(stops, config.start.point, endPoint, config.roundTrip);
-    return measuredInFixedOrder(stops, pts, config, notes, fetchFn);
+  // Ordem inicial cronológica; medição sem reordenar (ajuste fino é manual).
+  const working = initialOrderBySchedule(stops, config.start.point);
+  if (working.length !== stops.length) {
+    throw new Error("Falha interna ao ordenar as paradas.");
   }
-
-  const working = config.respectTime ? applyTimeAnchors(stops, config.start.point) : [...stops];
-  const anchored = config.respectTime && working !== stops;
-  if (anchored) notes.push("Horários agendados preservados como âncoras; demais paradas inseridas pelo menor desvio.");
-
-  const points = fullPoints(working, config.start.point, endPoint, config.roundTrip);
-  const endFixed = !config.roundTrip && endPoint !== null;
-
-  // Com âncoras ativas a ordem é contratual: mede na malha viária sem reordenar.
-  if (anchored) {
-    return measuredInFixedOrder(working, points, config, notes, fetchFn);
-  }
-
-  // Tentativa primária: TSP na malha viária.
-  try {
-    const trip = await fetchTrip({ points, roundTrip: config.roundTrip, endFixed }, fetchFn);
-    // trip.order cobre pontos móveis; reconstrói a ordem das OSs.
-    const movable = trip.waypointOrder.filter((i) => i > 0 && (endFixed ? i < points.length - 1 : true));
-    const ordered = movable.map((i) => working[i - 1]);
-    // Segurança: se o serviço devolver conjunto incompleto, cai no fallback.
-    if (ordered.length !== working.length || new Set(ordered).size !== working.length) {
-      throw new OsrmError("Resposta do OSRM inconsistente.");
-    }
-    let km = trip.distanceMeters / 1000;
-    let minutes = Math.round(trip.durationSeconds / 60);
-    if (!Number.isFinite(km) || km <= 0) {
-      const m = distanceMatrix(points);
-      km = pathKm(trip.waypointOrder, m, config.roundTrip);
-      minutes = estimateMinutes(km);
-    }
-    const timeWarnings = config.respectTime ? [] : detectTimeWarnings(ordered);
-    return {
-      stops: ordered,
-      legs: buildLegs(ordered, config.start, config.roundTrip ? null : config.end, config.roundTrip),
-      totalKm: km,
-      totalMinutes: minutes,
-      engine: "osrm-trip",
-      roadBased: true,
-      timeWarnings,
-      notes,
-    };
-  } catch (e) {
+  if (stops.some((s) => s.order.inspectionTime)) {
     notes.push(
-      e instanceof OsrmError
-        ? `Roteador indisponível (${e.message}) — usando heurística local.`
-        : "Roteador indisponível — usando heurística local."
+      "Ordem inicial por horário agendado (do mais cedo para o mais tarde); paradas sem horário inseridas pelo menor desvio. Ajuste manualmente com ↑↓ se precisar."
     );
   }
-
-  // Fallback: heurística local sobre os pontos (já com âncoras, se ativas).
-  const movableIdx = working.map((_, i) => i + 1);
-  let ordered: RouteStop[];
-  if (anchored) {
-    ordered = working;
-  } else {
-    const m = distanceMatrix(points);
-    const order = optimizeOrder(m, { roundTrip: config.roundTrip, endFixed });
-    ordered = order.filter((i) => movableIdx.includes(i)).map((i) => working[i - 1]);
-  }
-  const orderedPoints = fullPoints(ordered, config.start.point, endPoint, config.roundTrip);
-  const m2 = distanceMatrix(orderedPoints);
-  const seq = orderedPoints.map((_, i) => i);
-  const km = pathKm(seq, m2, false);
-  const timeWarnings = config.respectTime ? [] : detectTimeWarnings(ordered);
-  return {
-    stops: ordered,
-    legs: buildLegs(ordered, config.start, config.roundTrip ? null : config.end, config.roundTrip),
-    totalKm: km,
-    totalMinutes: estimateMinutes(km),
-    engine: "heuristic-2opt",
-    roadBased: false,
-    timeWarnings,
-    notes,
-  };
+  const points = fullPoints(working, config.start.point, endPoint, config.roundTrip);
+  return measuredInFixedOrder(working, points, config, notes, fetchFn);
 }
 
-/** Ordem fixa (1 OS, âncoras): tenta métricas viárias, senão linha reta. */
-async function measuredInFixedOrder(
+/**
+ * Mede uma ordem DEFINIDA (otimização de 1 OS ou reordenação manual):
+ * tenta métricas viárias sem reordenar, senão linha reta. Nunca altera
+ * a sequência recebida.
+ */
+export async function measuredInFixedOrder(
   ordered: RouteStop[],
   points: GeoPoint[],
   config: RouteConfig,
-  notes: string[],
-  fetchFn: typeof fetch
+  notes: string[] = [],
+  fetchFn: typeof fetch = fetch
 ): Promise<OptimizedRoute> {
   let km: number | null = null;
   let minutes: number | null = null;
@@ -196,10 +241,11 @@ async function measuredInFixedOrder(
     roadBased = true;
   } catch {
     const m = distanceMatrix(points);
-    km = pathKm(points.map((_, i) => i), m, false);
+    km = pathKm(points.map((_, i) => i), m, config.roundTrip);
     minutes = estimateMinutes(km);
     notes.push("Sem conexão com o roteador — distância em linha reta.");
   }
+  const schedule = buildSchedule(ordered, config.start.point, config.serviceMinutes);
   return {
     stops: ordered,
     legs: buildLegs(ordered, config.start, config.roundTrip ? null : config.end, config.roundTrip),
@@ -207,7 +253,9 @@ async function measuredInFixedOrder(
     totalMinutes: minutes,
     engine: roadBased ? "osrm-trip" : "heuristic-2opt",
     roadBased,
-    timeWarnings: [],
+    timeWarnings: schedule.timeWarnings,
     notes,
+    timeline: schedule.timeline,
+    suggestedDeparture: schedule.suggestedDeparture,
   };
 }

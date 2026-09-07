@@ -43,6 +43,33 @@ export interface StatusEvent {
   note?: string;
 }
 
+/**
+ * Coordenadas persistidas da OS (cache servidor de geocodificação).
+ * Nulo = ainda não geocodificada. `geocodedAddress` guarda a chave do
+ * endereço que gerou a coordenada — se o endereço mudar, a coordenada é
+ * considerada obsoleta e a OS é geocodificada de novo.
+ */
+export interface GeoCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export function isValidGeo(v: unknown): v is GeoCoordinates {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.latitude === "number" &&
+    typeof o.longitude === "number" &&
+    Number.isFinite(o.latitude) &&
+    Number.isFinite(o.longitude) &&
+    o.latitude >= -90 &&
+    o.latitude <= 90 &&
+    o.longitude >= -180 &&
+    o.longitude <= 180 &&
+    !(o.latitude === 0 && o.longitude === 0)
+  );
+}
+
 export interface ServiceOrder {
   /** Identidade técnica estável. Nunca exibida como "número". */
   id: string;
@@ -65,6 +92,10 @@ export interface ServiceOrder {
   updatedAt: string;
   /** Soft-delete em tudo. Lista esconde; purga futura. */
   deletedAt: string | null;
+  /** Coordenadas persistidas (migration 00005). Nulo = não geocodificada. */
+  geo: GeoCoordinates | null;
+  /** Chave do endereço que gerou `geo` (migration 00006; invalidação). */
+  geocodedAddress: string | null;
 }
 
 export interface CreateOrderInput {
@@ -78,6 +109,8 @@ export interface CreateOrderInput {
   contactName?: string | null;
   contactPhone?: string | null;
   notes?: string | null;
+  geo?: GeoCoordinates | null;
+  geocodedAddress?: string | null;
 }
 
 export type UpdateOrderInput = Partial<
@@ -93,6 +126,8 @@ export type UpdateOrderInput = Partial<
     | "contactName"
     | "contactPhone"
     | "notes"
+    | "geo"
+    | "geocodedAddress"
   >
 >;
 
@@ -137,6 +172,8 @@ export function validateOrderInput(
   const due = input.dueDate ?? null;
   if (received && due && isValidDateIso(received) && isValidDateIso(due) && due < received)
     errors.dueDate = "Conclusão não pode ser anterior ao recebimento.";
+  if (input.geo !== undefined && input.geo !== null && !isValidGeo(input.geo))
+    errors.geo = "Coordenadas inválidas.";
   return errors;
 }
 
@@ -165,6 +202,8 @@ export function createServiceOrder(
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
+    geo: isValidGeo(input.geo) ? { latitude: input.geo.latitude, longitude: input.geo.longitude } : null,
+    geocodedAddress: typeof input.geocodedAddress === "string" && input.geocodedAddress ? input.geocodedAddress : null,
   };
 }
 
@@ -191,6 +230,9 @@ export function updateServiceOrder(
   if (patch.contactName !== undefined) next.contactName = optText(patch.contactName);
   if (patch.contactPhone !== undefined) next.contactPhone = optText(patch.contactPhone);
   if (patch.notes !== undefined) next.notes = optText(patch.notes);
+  if (patch.geo !== undefined)
+    next.geo = patch.geo === null ? null : { latitude: patch.geo.latitude, longitude: patch.geo.longitude };
+  if (patch.geocodedAddress !== undefined) next.geocodedAddress = patch.geocodedAddress;
   // Reagendar = trocar data/hora de OS agendada: registra evento sem mudar estado.
   if (
     order.status === "scheduled" &&
@@ -296,4 +338,17 @@ export function addressLine(order: ServiceOrder): string {
 
 export function hasUsableAddress(order: ServiceOrder): boolean {
   return !isAddressEmpty(order.address);
+}
+
+/**
+ * Normaliza OS lida de snapshot legado (pré-geo): ausente vira null.
+ * Snapshots novos já trazem os campos; a função é idempotente.
+ */
+export function normalizeStoredOrder(order: ServiceOrder): ServiceOrder {
+  return {
+    ...order,
+    geo: isValidGeo(order.geo) ? order.geo : null,
+    geocodedAddress:
+      typeof order.geocodedAddress === "string" && order.geocodedAddress ? order.geocodedAddress : null,
+  };
 }

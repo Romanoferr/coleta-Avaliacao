@@ -8,7 +8,7 @@ import type { Address } from "../domain/address";
 import type { DocumentKind, DocumentMeta, DocumentProvider } from "../domain/document";
 import type { Inspection, InspectionStatus } from "../domain/inspection";
 import type { EvaluationData, PropertyType } from "../form-engine/types";
-import type { ServiceOrder, ServiceOrderStatus, StatusEvent } from "../domain/serviceOrder";
+import type { GeoCoordinates, ServiceOrder, ServiceOrderStatus, StatusEvent } from "../domain/serviceOrder";
 
 export interface OrderIdentity {
   id: string;
@@ -31,6 +31,11 @@ export interface OrderPatch {
   status?: ServiceOrderStatus;
   statusHistory?: StatusEvent[];
   deletedAt?: string | null;
+  /** Coordenadas persistidas + chave do endereço que as gerou (invalidação). */
+  geo?: GeoCoordinates | null;
+  geocodedAddress?: string | null;
+  /** Instante da geocodificação (só Supabase; modo local usa updatedAt). */
+  geocodedAt?: string | null;
 }
 
 export interface OrderRepository {

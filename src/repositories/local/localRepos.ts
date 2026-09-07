@@ -12,7 +12,7 @@ import { DomainError, newId, nowIso } from "../../domain/ids";
 import type { Inspection, InspectionStatus } from "../../domain/inspection";
 import { INSPECTION_SCHEMA_VERSION } from "../../domain/inspection";
 import type { CreateOrderInput, ServiceOrder, StatusEvent } from "../../domain/serviceOrder";
-import { normalizeOrderNumber, validateOrderInput } from "../../domain/serviceOrder";
+import { isValidGeo, normalizeOrderNumber, normalizeStoredOrder, validateOrderInput } from "../../domain/serviceOrder";
 import type { EvaluationData, PropertyType } from "../../form-engine/types";
 import { DB_SCHEMA_VERSION } from "../../persistence/db";
 import type { Db } from "../../persistence/db";
@@ -45,7 +45,7 @@ function toDb(storage: StorageLike): Db {
     }
     return {
       schemaVersion: DB_SCHEMA_VERSION,
-      orders: parsed.orders as ServiceOrder[],
+      orders: (parsed.orders as ServiceOrder[]).map(normalizeStoredOrder),
       inspections: parsed.inspections as Inspection[],
       documents: Array.isArray(parsed.documents) ? (parsed.documents as DocumentMeta[]) : [],
     };
@@ -81,6 +81,9 @@ function applyOrderPatch(order: ServiceOrder, patch: OrderPatch, now: string): S
   if (patch.status !== undefined) next.status = patch.status;
   if (patch.statusHistory !== undefined) next.statusHistory = patch.statusHistory as StatusEvent[];
   if (patch.deletedAt !== undefined) next.deletedAt = patch.deletedAt;
+  if (patch.geo !== undefined)
+    next.geo = patch.geo === null ? null : { latitude: patch.geo.latitude, longitude: patch.geo.longitude };
+  if (patch.geocodedAddress !== undefined) next.geocodedAddress = patch.geocodedAddress;
   return next;
 }
 
@@ -125,6 +128,8 @@ class LocalOrderRepository implements OrderRepository {
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
+      geo: isValidGeo(input.geo) ? { latitude: input.geo.latitude, longitude: input.geo.longitude } : null,
+      geocodedAddress: typeof input.geocodedAddress === "string" && input.geocodedAddress ? input.geocodedAddress : null,
     };
     this.write({ ...db, orders: [order, ...db.orders] });
     return order;

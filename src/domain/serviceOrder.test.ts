@@ -5,7 +5,9 @@ import {
   changeServiceOrderStatus,
   createServiceOrder,
   isOrderOverdue,
+  isValidGeo,
   normalizeOrderNumber,
+  normalizeStoredOrder,
   reopenServiceOrder,
   softDeleteServiceOrder,
   updateServiceOrder,
@@ -76,5 +78,31 @@ describe("serviceOrder", () => {
     const del = softDeleteServiceOrder(o);
     expect(del.deletedAt).not.toBeNull();
     expect(isOrderOverdue(del, "2026-09-10")).toBe(false);
+  });
+
+  it("geo: cria nulo, valida faixa e atualiza via patch", () => {
+    const o = createServiceOrder(BASE, []);
+    expect(o.geo).toBeNull();
+    expect(o.geocodedAddress).toBeNull();
+    expect(isValidGeo({ latitude: -23.5, longitude: -46.6 })).toBe(true);
+    expect(isValidGeo({ latitude: 0, longitude: 0 })).toBe(false);
+    expect(isValidGeo({ latitude: 91, longitude: 0 })).toBe(false);
+    expect(validateOrderInput({ geo: { latitude: 91, longitude: 0 } }, [])).toHaveProperty("geo");
+    const g = updateServiceOrder(
+      o,
+      { geo: { latitude: -23.5, longitude: -46.6 }, geocodedAddress: "rua a 10" },
+      []
+    );
+    expect(g.geo).toEqual({ latitude: -23.5, longitude: -46.6 });
+    expect(g.geocodedAddress).toBe("rua a 10");
+  });
+
+  it("normalizeStoredOrder tolera snapshot legado sem geo", () => {
+    const legacy = { ...createServiceOrder(BASE, []) } as Record<string, unknown>;
+    delete legacy.geo;
+    delete legacy.geocodedAddress;
+    const n = normalizeStoredOrder(legacy as never);
+    expect(n.geo).toBeNull();
+    expect(n.geocodedAddress).toBeNull();
   });
 });

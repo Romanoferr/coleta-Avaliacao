@@ -16,7 +16,7 @@ export interface RouteStop {
   order: ServiceOrder;
   point: GeoPoint;
   /** Origem da coordenada (rastreabilidade do custo/precisão). */
-  source: "osrm" | "nominatim" | "cache" | "manual";
+  source: "stored" | "osrm" | "nominatim" | "cache" | "manual";
 }
 
 export interface RouteEndpoint {
@@ -35,17 +35,43 @@ export interface RouteConfig {
   roundTrip: boolean;
   /** null/undefined = rota aberta (termina na última OS). */
   end: RouteEndpoint | null;
-  /** true = âncoras cronológicas para OS com horário (padrão). */
-  respectTime: boolean;
+  /**
+   * Minutos médios de atendimento por parada (configurável na UI).
+   * Usado SÓ para previsão de chegadas/avisos — nunca para ordenar.
+   */
+  serviceMinutes: number;
 }
 
 export type RouteEngine = "osrm-trip" | "heuristic-2opt";
+
+/** Previsão de chegada de uma parada (cronograma com atendimento médio). */
+export interface TimelineEntry {
+  orderId: string;
+  /** Número comercial da OS (exibição). */
+  number: string;
+  /** "HH:MM" prevista de chegada (pode diferir do agendado). */
+  eta: string;
+  /** "HH:MM" agendado, quando houver. */
+  scheduled: string | null;
+  /** Minutos após o horário (0 = no horário). */
+  lateBy: number;
+}
 
 export interface OptimizedRoute {
   /** Paradas na ordem de visitação (só OSs; início/fim ficam em `legs`). */
   stops: RouteStop[];
   /** Sequência completa de visitação: início → OSs → fim/início. */
-  legs: { label: string; point: GeoPoint; orderId: string | null }[];
+  legs: {
+    label: string;
+    point: GeoPoint;
+    orderId: string | null;
+    /**
+     * Texto do endereço como digitado (OSs) ou informado (início/fim).
+     * O Google Maps recebe este texto — não a coordenada — para exibir
+     * exatamente o endereço de origem (coordenadas servem só à otimização).
+     */
+    address: string | null;
+  }[];
   totalKm: number;
   totalMinutes: number;
   engine: RouteEngine;
@@ -53,6 +79,10 @@ export interface OptimizedRoute {
   roadBased: boolean;
   timeWarnings: string[];
   notes: string[];
+  /** Cronograma previsto (mesma ordem de `stops`); vazio sem horários. */
+  timeline: TimelineEntry[];
+  /** "HH:MM" sugerida de saída para cumprir o 1º horário; null sem horários. */
+  suggestedDeparture: string | null;
 }
 
 export interface InvalidStop {

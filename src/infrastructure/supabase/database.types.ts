@@ -35,10 +35,12 @@ export type OrderRow = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-  /** Cache servidor de geocodificação (migration 00005). Nulo = não geocodificada. */
+  /** Cache servidor de geocodificação (migrations 00005/00006). Nulo = não geocodificada. */
   latitude: number | null;
   longitude: number | null;
   geocoded_at: string | null;
+  /** Chave do endereço que gerou as coordenadas (invalidação ao mudar endereço). */
+  geocoded_address: string | null;
 }
 
 export type OrderInsert = {
@@ -58,6 +60,7 @@ export type OrderInsert = {
   latitude?: number | null;
   longitude?: number | null;
   geocoded_at?: string | null;
+  geocoded_address?: string | null;
 }
 
 export type InspectionRow = {

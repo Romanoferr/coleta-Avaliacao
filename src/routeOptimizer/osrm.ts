@@ -32,11 +32,11 @@ export function tripUrl(base: string, req: TripRequest): string {
     overview: "false",
     steps: "false",
   });
-  // source=first trava a origem; destination trava o fim (circuito ou fixo).
+  // source=first trava a origem. Circuito (roundtrip): o retorno ao início é
+  // implícito — enviar `destination=first` aqui faz o OSRM responder HTTP 400.
   params.set("source", "first");
-  if (req.roundTrip) params.set("destination", "first");
-  else if (req.endFixed) params.set("destination", "last");
-  else params.set("destination", "any");
+  if (!req.roundTrip && req.endFixed) params.set("destination", "last");
+  else if (!req.roundTrip) params.set("destination", "any");
   params.set("roundtrip", req.roundTrip ? "true" : "false");
   return `${base}/trip/v1/driving/${path}?${params.toString()}`;
 }

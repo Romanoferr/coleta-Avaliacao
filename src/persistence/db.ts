@@ -7,6 +7,7 @@
 import type { DocumentMeta } from "../domain/document";
 import type { Inspection } from "../domain/inspection";
 import type { ServiceOrder } from "../domain/serviceOrder";
+import { normalizeStoredOrder } from "../domain/serviceOrder";
 
 export const DB_KEY = "coleta-avaliacao:db:v1";
 export const DB_SCHEMA_VERSION = 1;
@@ -35,7 +36,12 @@ export function loadDb(): Db {
     if (!raw) return emptyDb();
     const parsed: unknown = JSON.parse(raw);
     if (!isDb(parsed)) return emptyDb();
-    return { ...parsed, documents: Array.isArray(parsed.documents) ? parsed.documents : [] };
+    const db = parsed as Db;
+    return {
+      ...db,
+      orders: db.orders.map(normalizeStoredOrder),
+      documents: Array.isArray(db.documents) ? db.documents : [],
+    };
   } catch {
     return emptyDb();
   }

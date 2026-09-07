@@ -12,6 +12,7 @@ import type { Inspection, InspectionStatus } from "../../domain/inspection";
 import { INSPECTION_SCHEMA_VERSION } from "../../domain/inspection";
 import type { ServiceOrder, ServiceOrderStatus, StatusEvent } from "../../domain/serviceOrder";
 import { STATUS_LABEL } from "../../domain/serviceOrder";
+import { isValidGeo } from "../../domain/serviceOrder";
 import type { EvaluationData, PropertyType } from "../../form-engine/types";
 import type { DocumentRow, InspectionRow, InspectionUpdate, OrderRow, OrderUpdate } from "../../infrastructure/supabase/database.types";
 import type { InspectionRef, OrderPatch } from "../ports";
@@ -90,6 +91,10 @@ export function orderFromRow(row: OrderRow): ServiceOrder {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
+    geo: isValidGeo({ latitude: row.latitude, longitude: row.longitude })
+      ? { latitude: row.latitude as number, longitude: row.longitude as number }
+      : null,
+    geocodedAddress: typeof row.geocoded_address === "string" && row.geocoded_address ? row.geocoded_address : null,
   };
 }
 
@@ -165,6 +170,14 @@ export function orderPatchToColumns(patch: OrderPatch): OrderUpdate {
   }
   if (patch.statusHistory !== undefined) cols.status_history = patch.statusHistory;
   if (patch.deletedAt !== undefined) cols.deleted_at = patch.deletedAt;
+  if (patch.geo !== undefined) {
+    if (patch.geo !== null && !isValidGeo(patch.geo))
+      throw new DomainError("INVALID_GEO", "Coordenadas inválidas.");
+    cols.latitude = patch.geo?.latitude ?? null;
+    cols.longitude = patch.geo?.longitude ?? null;
+  }
+  if (patch.geocodedAddress !== undefined) cols.geocoded_address = patch.geocodedAddress;
+  if (patch.geocodedAt !== undefined) cols.geocoded_at = patch.geocodedAt;
   return cols;
 }
 

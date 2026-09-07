@@ -201,6 +201,11 @@ function diffOrderPatch(prev: ServiceOrder, next: ServiceOrder): OrderPatch {
   if (next.status !== prev.status) patch.status = next.status;
   if (JSON.stringify(next.statusHistory) !== JSON.stringify(prev.statusHistory)) patch.statusHistory = next.statusHistory;
   if (next.deletedAt !== prev.deletedAt) patch.deletedAt = next.deletedAt;
+  if (JSON.stringify(next.geo) !== JSON.stringify(prev.geo)) {
+    patch.geo = next.geo;
+    patch.geocodedAt = next.geo ? nowIso() : null;
+  }
+  if (next.geocodedAddress !== prev.geocodedAddress) patch.geocodedAddress = next.geocodedAddress;
   return patch;
 }
 

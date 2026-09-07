@@ -1,15 +1,16 @@
 /**
- * Geocodificação via Nominatim (OpenStreetMap) — sem chave, sem custo.
- * Política de uso respeitada: 1 req/s, User-Agent identificável, cache
- * persistente (geo.ts) para nunca repetir o mesmo endereço. Reversível via
- * VITE_NOMINATIM_BASE_URL sem mudar código.
+ * Provedor de geocodificação — interface desacoplada do algoritmo.
+ * O restante do app depende só de `GeocodeProvider.geocode()`; trocar o
+ * serviço (ex.: Photon, serviço próprio) = nova implementação, sem tocar na otimização.
+ * Hoje: Nominatim (OSM) — sem chave, sem custo. Política de uso: 1 req/s
+ * (throttle), timeout e erro tipado. `null` = endereço não localizado.
  */
-import { cachedPoint, isValidPoint, storePoint } from "./geo";
+import { isValidPoint } from "./geo";
 import type { GeoPoint } from "./types";
 
-export function nominatimBase(): string {
-  const env = (import.meta as unknown as { env?: Record<string, string> }).env ?? {};
-  return (env.VITE_NOMINATIM_BASE_URL ?? "https://nominatim.openstreetmap.org").replace(/\/+$/, "");
+export interface GeocodeProvider {
+  readonly name: string;
+  geocode(address: string): Promise<GeoPoint | null>;
 }
 
 export class GeocodeError extends Error {
@@ -17,6 +18,11 @@ export class GeocodeError extends Error {
     super(message);
     this.name = "GeocodeError";
   }
+}
+
+export function nominatimBase(): string {
+  const env = (import.meta as unknown as { env?: Record<string, string> }).env ?? {};
+  return (env.VITE_NOMINATIM_BASE_URL ?? "https://nominatim.openstreetmap.org").replace(/\/+$/, "");
 }
 
 interface SearchResponse {
@@ -27,44 +33,62 @@ interface SearchResponse {
 const MIN_INTERVAL_MS = 1100;
 let lastCallAt = 0;
 
-async function throttle(): Promise<void> {
-  const wait = MIN_INTERVAL_MS - (Date.now() - lastCallAt);
+async function throttle(minIntervalMs: number): Promise<void> {
+  const wait = minIntervalMs - (Date.now() - lastCallAt);
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   lastCallAt = Date.now();
 }
 
-export async function geocodeAddress(
-  addressText: string,
-  fetchFn: typeof fetch = fetch,
-  timeoutMs = 12000
-): Promise<GeoPoint> {
-  const text = addressText.trim();
-  if (!text) throw new GeocodeError("Endereço vazio.");
-  const hit = cachedPoint(text);
-  if (hit) return hit;
+export interface NominatimOptions {
+  baseUrl?: string;
+  fetchFn?: typeof fetch;
+  timeoutMs?: number;
+  /** Intervalo mínimo entre chamadas (política de uso; 0 só em testes). */
+  minIntervalMs?: number;
+}
 
-  await throttle();
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const url =
-      `${nominatimBase()}/search?` +
-      new URLSearchParams({ format: "jsonv2", limit: "1", q: text, countrycodes: "br" }).toString();
-    const res = await fetchFn(url, {
-      signal: ctrl.signal,
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) throw new GeocodeError(`Geocodificação HTTP ${res.status}.`);
-    const json = (await res.json()) as SearchResponse[];
-    const first = Array.isArray(json) ? json[0] : undefined;
-    const point = first ? { lat: Number(first.lat), lng: Number(first.lon) } : null;
-    if (!isValidPoint(point)) throw new GeocodeError("Endereço não localizado.");
-    storePoint(text, point);
-    return point;
-  } catch (e) {
-    if (e instanceof GeocodeError) throw e;
-    throw new GeocodeError("Falha de rede na geocodificação.");
-  } finally {
-    clearTimeout(timer);
-  }
+export function createNominatimProvider(opts: NominatimOptions = {}): GeocodeProvider {
+  const base = (opts.baseUrl ?? nominatimBase()).replace(/\/+$/, "");
+  const fetchFn = opts.fetchFn ?? fetch;
+  const timeoutMs = opts.timeoutMs ?? 12000;
+  const minIntervalMs = opts.minIntervalMs ?? MIN_INTERVAL_MS;
+  return {
+    name: "nominatim",
+    async geocode(address: string): Promise<GeoPoint | null> {
+      const text = address.trim();
+      if (!text) return null;
+      await throttle(minIntervalMs);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const url =
+          `${base}/search?` +
+          new URLSearchParams({ format: "jsonv2", limit: "1", q: text, countrycodes: "br" }).toString();
+        const res = await fetchFn(url, { signal: ctrl.signal, headers: { Accept: "application/json" } });
+        if (!res.ok) throw new GeocodeError(`Geocodificação HTTP ${res.status}.`);
+        const json = (await res.json()) as SearchResponse[];
+        const first = Array.isArray(json) ? json[0] : undefined;
+        const point = first ? { lat: Number(first.lat), lng: Number(first.lon) } : null;
+        return isValidPoint(point) ? point : null;
+      } catch (e) {
+        if (e instanceof GeocodeError) throw e;
+        throw new GeocodeError("Falha de rede na geocodificação.");
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  };
+}
+
+/** Provedor padrão da aplicação (Nominatim público). */
+export const nominatimProvider: GeocodeProvider = createNominatimProvider();
+
+/**
+ * Atalho legado (sem cache): prefira `resolveManyPoints` (coordinates.ts),
+ * que aplica o fluxo banco → cache → provider → persistência.
+ */
+export async function geocodeAddress(addressText: string): Promise<GeoPoint> {
+  const point = await nominatimProvider.geocode(addressText);
+  if (!point) throw new GeocodeError("Endereço não localizado.");
+  return point;
 }

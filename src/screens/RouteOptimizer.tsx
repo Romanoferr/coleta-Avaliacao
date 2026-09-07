@@ -4,7 +4,7 @@
  * Isolamento: só opera sobre `useStore().orders` (já filtrado por RLS por
  * usuário); nunca busca OS por id arbitrário.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppHeader } from "../components/chrome";
 import { EmptyState, StatusChip, formatDateBR, osInputCls, OsField } from "../components/os";
@@ -12,12 +12,14 @@ import { todayLocalIso } from "../domain/ids";
 import { addressLine } from "../domain/serviceOrder";
 import type { ServiceOrder } from "../domain/serviceOrder";
 import { useStore } from "../state/store";
-import { geocodeAddress } from "../routeOptimizer/geocode";
-import { cachedPoint, orderAddressText } from "../routeOptimizer/geo";
-import { MAPS_URL_LIMIT, googleMapsDirectionsUrl } from "../routeOptimizer/maps";
-import { computeOptimizedRoute } from "../routeOptimizer/route";
+import { nominatimProvider } from "../routeOptimizer/geocode";
+import { cachedPoint, storePoint } from "../routeOptimizer/geo";
+import { googleMapsSegmentUrls } from "../routeOptimizer/maps";
+import { resolveManyPoints } from "../routeOptimizer/coordinates";
+import { computeOptimizedRoute, measuredInFixedOrder } from "../routeOptimizer/route";
+import { SERVICE_MINUTES_PER_STOP } from "../routeOptimizer/route";
 import { ordersForDate, ordersWithoutAddress } from "../routeOptimizer/select";
-import type { GeoPoint, InvalidStop, OptimizedRoute, RouteEndpoint, RouteStop } from "../routeOptimizer/types";
+import type { GeoPoint, InvalidStop, OptimizedRoute, RouteConfig, RouteEndpoint, RouteStop } from "../routeOptimizer/types";
 
 type Phase = "idle" | "geocoding" | "optimizing" | "done" | "error";
 
@@ -37,19 +39,23 @@ function initials(label: string): string {
 }
 
 export default function RouteOptimizer() {
-  const { orders, ready } = useStore();
+  const { orders, ready, updateOrder } = useStore();
   const navigate = useNavigate();
   const [date, setDate] = useState(todayLocalIso());
   const [selected, setSelected] = useState<string[] | null>(null); // null = todas
   const [startText, setStartText] = useState("");
   const [roundTrip, setRoundTrip] = useState(true);
   const [endText, setEndText] = useState("");
-  const [respectTime, setRespectTime] = useState(true);
+  const [serviceMinutes, setServiceMinutes] = useState(SERVICE_MINUTES_PER_STOP);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState("");
+  const [progressPct, setProgressPct] = useState<number | null>(null);
   const [result, setResult] = useState<OptimizedRoute | null>(null);
   const [invalid, setInvalid] = useState<InvalidStop[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
+  /** Base da última medição (pontos + início/fim) para reordenação manual. */
+  const lastInputRef = useRef<{ stops: RouteStop[]; start: RouteEndpoint; end: RouteEndpoint | null; roundTrip: boolean; dateIso: string } | null>(null);
 
   const dayOrders = useMemo(() => ordersForDate(orders, date), [orders, date]);
   const noAddress = useMemo(() => ordersWithoutAddress(orders, date), [orders, date]);
@@ -61,7 +67,24 @@ export default function RouteOptimizer() {
     () => dayOrders.filter((o) => selectedIds.includes(o.id)),
     [dayOrders, selectedIds]
   );
-  const timedCount = selectedOrders.filter((o) => o.inspectionTime).length;
+
+  function clampServiceMinutes(v: number): number {
+    if (!Number.isFinite(v)) return SERVICE_MINUTES_PER_STOP;
+    return Math.min(480, Math.max(0, Math.round(v)));
+  }
+
+  function buildConfig(
+    base: { start: RouteEndpoint; end: RouteEndpoint | null; roundTrip: boolean; dateIso: string; stops: RouteStop[] }
+  ): RouteConfig {
+    return {
+      dateIso: base.dateIso,
+      selectedOrderIds: base.stops.map((s) => s.orderId),
+      start: base.start,
+      roundTrip: base.roundTrip,
+      end: base.end,
+      serviceMinutes: clampServiceMinutes(serviceMinutes),
+    };
+  }
 
   const toggle = (id: string) => {
     const base = selected === null ? dayOrders.map((o) => o.id) : selected;
@@ -75,6 +98,7 @@ export default function RouteOptimizer() {
     setInvalid([]);
     setError(null);
     setPhase("idle");
+    setProgressPct(null);
   }
 
   async function resolveEndpoint(label: string, text: string): Promise<RouteEndpoint> {
@@ -82,7 +106,9 @@ export default function RouteOptimizer() {
     if (!t) throw new Error(`Informe o ${label.toLowerCase()}.`);
     const hit = cachedPoint(t);
     if (hit) return { label, address: t, point: hit, source: "cache" };
-    const point = await geocodeAddress(t);
+    const point = await nominatimProvider.geocode(t);
+    if (!point) throw new Error("Endereço não localizado.");
+    storePoint(t, point);
     return { label, address: t, point, source: "nominatim" };
   }
 
@@ -117,46 +143,36 @@ export default function RouteOptimizer() {
       }
     }
 
-    // Geocodifica as OSs selecionadas (cache primeiro; falha isolada por OS).
-    const stops: RouteStop[] = [];
-    const bad: InvalidStop[] = [];
-    for (let i = 0; i < selectedOrders.length; i++) {
-      const o = selectedOrders[i];
-      setProgress(`Localizando ${i + 1} de ${selectedOrders.length}…`);
-      try {
-        const point = await geocodeAddress(orderAddressText(o));
-        stops.push({
-          orderId: o.id,
-          order: o,
-          point,
-          source: cachedPoint(orderAddressText(o)) ? "cache" : "nominatim",
-        });
-      } catch {
-        bad.push({ orderId: o.id, order: o, reason: "Endereço não localizado." });
-      }
-    }
+    // Coordenadas das OSs: banco → cache → provider, com persistência
+    // best-effort e dedupe por endereço (ver coordinates.ts). Falha isolada.
+    setPhase("geocoding");
+    setProgress("Localizando endereços…");
+    setProgressPct(0);
+    const { stops, invalid: bad } = await resolveManyPoints(selectedOrders, {
+      provider: nominatimProvider,
+      persist: (orderId, geo, key) => updateOrder(orderId, { geo, geocodedAddress: key }),
+      onProgress: (done, total) => {
+        setProgress(`Localizando endereços… ${done}/${total}`);
+        setProgressPct(total === 0 ? null : done / total);
+      },
+    });
     // Defesa em profundidade: nunca otimizar OS fora da lista isolada do dia.
     const safe = stops.filter((s) => dayOrders.some((o) => o.id === s.orderId));
     setInvalid(bad);
     if (safe.length === 0) {
       setError("Nenhuma OS pôde ser localizada. Corrija os endereços e tente de novo.");
       setPhase("error");
+      setProgressPct(null);
       return;
     }
     try {
       setPhase("optimizing");
-      setProgress("Calculando melhor ordem…");
-      const route = await computeOptimizedRoute({
-        config: {
-          dateIso: date,
-          selectedOrderIds: safe.map((s) => s.orderId),
-          start,
-          roundTrip,
-          end,
-          respectTime: respectTime && timedCount >= 2,
-        },
-        stops: safe,
-      });
+      setProgress("Calculando melhor rota…");
+      setProgressPct(null);
+      // Ordem SEMPRE por deslocamento (horários nunca influenciam a ordenação).
+      const base = { start, roundTrip, end, dateIso: date, stops: safe };
+      lastInputRef.current = base;
+      const route = await computeOptimizedRoute({ config: buildConfig(base), stops: safe });
       setResult(route);
       setPhase("done");
       setProgress("");
@@ -166,14 +182,36 @@ export default function RouteOptimizer() {
     }
   }
 
-  const maps = useMemo(() => {
-    if (!result || result.legs.length < 2) return null;
-    const pts = result.legs.map((l) => l.point);
-    return googleMapsDirectionsUrl({
-      origin: pts[0],
-      waypoints: pts.slice(1, -1),
-      destination: pts[pts.length - 1],
-    });
+  /** Reordenação manual: troca duas paradas e remede SEM reotimizar. */
+  async function moveStop(orderId: string, dir: -1 | 1) {
+    const base = lastInputRef.current;
+    if (!result || !base || recalculating) return;
+    const cur = result.stops;
+    const i = cur.findIndex((s) => s.orderId === orderId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= cur.length) return;
+    const next = [...cur];
+    [next[i], next[j]] = [next[j], next[i]];
+    setRecalculating(true);
+    try {
+      const pts = [base.start.point, ...next.map((s) => s.point)];
+      if (base.roundTrip) pts.push(base.start.point);
+      else if (base.end) pts.push(base.end.point);
+      const r = await measuredInFixedOrder(next, pts, buildConfig({ ...base, stops: next }), [
+        "Ordem ajustada manualmente — métricas recalculadas sem reotimizar.",
+      ]);
+      setResult(r);
+    } finally {
+      setRecalculating(false);
+    }
+  }
+
+  const segments = useMemo(() => {
+    if (!result || result.legs.length < 2) return [];
+    return googleMapsSegmentUrls(
+      result.legs.map((l) => ({ point: l.point, address: l.address })),
+      result.legs.map((l) => l.label)
+    );
   }, [result]);
 
   return (
@@ -299,22 +337,25 @@ export default function RouteOptimizer() {
                   />
                 </OsField>
               )}
-              <label className="flex cursor-pointer items-start gap-3">
+              <OsField
+                label="Tempo médio por atendimento (min)"
+                hint="Usado só na previsão de chegadas e avisos de atraso."
+              >
                 <input
-                  type="checkbox"
-                  checked={respectTime}
-                  onChange={(e) => setRespectTime(e.target.checked)}
-                  className="mt-0.5 h-6 w-6 shrink-0 accent-blue-700"
+                  type="number"
+                  value={serviceMinutes}
+                  min={0}
+                  max={480}
+                  step={5}
+                  onChange={(e) => setServiceMinutes(clampServiceMinutes(Number(e.target.value)))}
+                  className={osInputCls}
+                  aria-label="Tempo médio por atendimento em minutos"
                 />
-                <span>
-                  <span className="block text-[15px] font-bold">Respeitar horários agendados</span>
-                  <span className="block text-[13px] text-slate-500">
-                    {timedCount >= 2
-                      ? `${timedCount} OS com horário viram âncoras cronológicas.`
-                      : "Ativo quando 2+ OS selecionadas tiverem horário."}
-                  </span>
-                </span>
-              </label>
+              </OsField>
+              <p className="rounded-xl bg-slate-100 p-3 text-[13px] font-semibold text-slate-500">
+                🕐 A ordem inicial segue os horários agendados (do mais cedo para o mais tarde); paradas sem horário
+                entram pelo menor desvio. Ajuste com ↑↓ na lista abaixo.
+              </p>
               <button
                 type="button"
                 onClick={() => void optimize()}
@@ -324,9 +365,21 @@ export default function RouteOptimizer() {
                 {phase === "geocoding" || phase === "optimizing" ? "Otimizando…" : "Otimizar rota"}
               </button>
               {(phase === "geocoding" || phase === "optimizing") && (
-                <p className="text-center text-[13px] font-semibold text-slate-500" role="status">
-                  {progress}
-                </p>
+                <div role="status" aria-live="polite">
+                  <p className="text-center text-[13px] font-semibold text-slate-500">{progress}</p>
+                  {progressPct !== null ? (
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden>
+                      <div
+                        className="h-full rounded-full bg-brand transition-[width] duration-200"
+                        style={{ width: `${Math.round(progressPct * 100)}%` }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden>
+                      <div className="h-full w-1/3 animate-pulse rounded-full bg-brand" />
+                    </div>
+                  )}
+                </div>
               )}
             </section>
           </>
@@ -375,6 +428,12 @@ export default function RouteOptimizer() {
               <p className="mt-1 text-[12.5px] font-semibold text-slate-300">
                 {result.roadBased ? "🛣️ Distância/tempo pela malha viária (OSRM)." : "📏 Estimativa local (sem roteador)."}
               </p>
+              {result.suggestedDeparture && (
+                <p className="mt-2 rounded-xl bg-blue-500/20 p-3 text-[13px] font-bold text-blue-100">
+                  🕐 Saia até às {result.suggestedDeparture} para cumprir o primeiro horário (considerando{" "}
+                  {clampServiceMinutes(serviceMinutes)} min de atendimento por parada).
+                </p>
+              )}
               {result.timeWarnings.map((w, i) => (
                 <p key={i} className="mt-2 rounded-xl bg-amber-500/20 p-3 text-[13px] font-bold text-amber-200">
                   ⏰ {w}
@@ -385,17 +444,22 @@ export default function RouteOptimizer() {
                   ℹ️ {n}
                 </p>
               ))}
-              {maps?.truncated && (
+              {segments.length > 1 && (
                 <p className="mt-1.5 text-[12.5px] font-semibold text-slate-300">
-                  ℹ️ Rota com muitas paradas: o Google Maps abre os {MAPS_URL_LIMIT} primeiros pontos — a ordem completa está abaixo.
+                  ℹ️ Rota com muitas paradas: o Maps abre em {segments.length} trechos navegáveis — a rota completa
+                  (ordem otimizada) está preservada abaixo.
                 </p>
               )}
             </div>
 
             <RouteSchema legs={result.legs} />
 
-            <ol className="mt-3 flex flex-col gap-1.5">
-              {result.legs.map((leg, i) => (
+            <ol className="mt-3 flex flex-col gap-1.5" aria-label="Ordem das paradas (ajustável)">
+              {result.legs.map((leg, i) => {
+                const tl = leg.orderId ? result.timeline.find((t) => t.orderId === leg.orderId) : undefined;
+                // Posição entre as OSs (ignora início/fim) para os botões ↑↓.
+                const stopIdx = leg.orderId ? result.stops.findIndex((s) => s.orderId === leg.orderId) : -1;
+                return (
                 <li
                   key={`${leg.orderId ?? leg.label}-${i}`}
                   className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3"
@@ -415,22 +479,77 @@ export default function RouteOptimizer() {
                         {addressLine(result.stops.find((s) => s.orderId === leg.orderId)?.order as ServiceOrder)}
                       </span>
                     )}
+                    {tl?.scheduled && (
+                      <span
+                        className={`tnum mt-1 inline-block rounded-full px-2.5 py-0.5 text-[12px] font-bold ${
+                          tl.lateBy > 0 ? "bg-red-50 text-red-700" : "bg-blue-50 text-brand"
+                        }`}
+                      >
+                        ⏰ {tl.scheduled} · chegada ~{tl.eta}
+                        {tl.lateBy > 0 ? ` · ⚠ +${tl.lateBy}min` : ""}
+                      </span>
+                    )}
                   </span>
-                  {i < result.legs.length - 1 && <span className="text-slate-300" aria-hidden>↓</span>}
+                  {stopIdx >= 0 && (
+                    <span className="flex shrink-0 flex-col gap-1" role="group" aria-label={`Reordenar ${leg.label}`}>
+                      <button
+                        type="button"
+                        disabled={recalculating || stopIdx === 0}
+                        onClick={() => void moveStop(leg.orderId as string, -1)}
+                        aria-label={`Subir ${leg.label}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] border-slate-200 text-[16px] font-bold text-slate-600 active:bg-slate-50 disabled:opacity-30"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        disabled={recalculating || stopIdx === result.stops.length - 1}
+                        onClick={() => void moveStop(leg.orderId as string, 1)}
+                        aria-label={`Descer ${leg.label}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] border-slate-200 text-[16px] font-bold text-slate-600 active:bg-slate-50 disabled:opacity-30"
+                      >
+                        ↓
+                      </button>
+                    </span>
+                  )}
                 </li>
-              ))}
+                );
+              })}
             </ol>
+            {recalculating && (
+              <p className="mt-2 text-center text-[13px] font-semibold text-slate-500" role="status">
+                Recalculando métricas…
+              </p>
+            )}
 
             <div className="mt-3 flex flex-col gap-2">
-              {maps && (
+              {segments.length === 1 && (
                 <a
-                  href={maps.url}
+                  href={segments[0].url}
                   target="_blank"
                   rel="noreferrer"
                   className="flex h-[60px] items-center justify-center rounded-2xl bg-green-700 text-[17px] font-extrabold text-white active:bg-green-800"
                 >
                   Abrir no Google Maps
                 </a>
+              )}
+              {segments.length > 1 && (
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-3">
+                  <p className="text-[14px] font-extrabold">Navegar por trechos</p>
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {segments.map((s) => (
+                      <a
+                        key={s.index}
+                        href={s.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex min-h-[52px] items-center justify-center rounded-xl bg-green-700 px-3 py-2 text-center text-[15px] font-extrabold text-white active:bg-green-800"
+                      >
+                        {s.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
               )}
               <button
                 type="button"

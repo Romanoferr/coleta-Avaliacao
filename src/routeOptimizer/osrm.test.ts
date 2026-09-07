@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { OsrmError, parseTripResponse, routeUrl, tripUrl } from "./osrm";
 
 describe("osrm", () => {
-  it("tripUrl trava origem e destino (circuito)", () => {
+  it("tripUrl trava a origem; circuito não envia destination (OSRM dá 400)", () => {
     const url = tripUrl("https://x", {
       points: [
         { lat: 1, lng: 2 },
@@ -12,7 +12,7 @@ describe("osrm", () => {
       endFixed: false,
     });
     expect(url).toContain("source=first");
-    expect(url).toContain("destination=first");
+    expect(url).not.toContain("destination=");
     expect(url).toContain("roundtrip=true");
     expect(url).toContain("2,1"); // lng,lat
   });
