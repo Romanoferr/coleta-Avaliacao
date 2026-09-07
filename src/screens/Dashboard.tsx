@@ -150,6 +150,13 @@ export default function Dashboard() {
             >
               + Nova ordem de serviço
             </button>
+            <button
+              type="button"
+              onClick={() => navigate("/rota")}
+              className="mt-2 h-[56px] w-full rounded-2xl border-[1.5px] border-blue-300/40 bg-white/10 text-[16px] font-extrabold text-white active:bg-white/20"
+            >
+              🗺️ Otimizar rota do dia
+            </button>
           </div>
         </section>
 

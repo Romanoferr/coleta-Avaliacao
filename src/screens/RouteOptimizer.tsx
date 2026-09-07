@@ -14,7 +14,7 @@ import type { ServiceOrder } from "../domain/serviceOrder";
 import { useStore } from "../state/store";
 import { geocodeAddress } from "../routeOptimizer/geocode";
 import { cachedPoint, orderAddressText } from "../routeOptimizer/geo";
-import { googleMapsDirectionsUrl } from "../routeOptimizer/maps";
+import { MAPS_URL_LIMIT, googleMapsDirectionsUrl } from "../routeOptimizer/maps";
 import { computeOptimizedRoute } from "../routeOptimizer/route";
 import { ordersForDate, ordersWithoutAddress } from "../routeOptimizer/select";
 import type { GeoPoint, InvalidStop, OptimizedRoute, RouteEndpoint, RouteStop } from "../routeOptimizer/types";
@@ -387,7 +387,7 @@ export default function RouteOptimizer() {
               ))}
               {maps?.truncated && (
                 <p className="mt-1.5 text-[12.5px] font-semibold text-slate-300">
-                  ℹ️ Rota com muitas paradas: o Google Maps abre as {10} primeiras — a ordem completa está abaixo.
+                  ℹ️ Rota com muitas paradas: o Google Maps abre os {MAPS_URL_LIMIT} primeiros pontos — a ordem completa está abaixo.
                 </p>
               )}
             </div>

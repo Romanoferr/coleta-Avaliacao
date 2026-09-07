@@ -54,12 +54,20 @@ function okFetch(trip?: { order: number[]; distance?: number; duration?: number 
       };
     }
     return { ok: true, json: async () => ({ code: "Ok", routes: [{ distance: 4000, duration: 480 }] }) };
-  }) as unknown as typeof fetch;
+  });
+}
+
+type FetchMock = ReturnType<typeof okFetch>;
+function asFetch(fn: FetchMock): typeof fetch {
+  return fn as unknown as typeof fetch;
 }
 
 const failFetch = vi.fn(async () => {
   throw new Error("offline");
-}) as unknown as typeof fetch;
+});
+function failFetchAs(): typeof fetch {
+  return failFetch as unknown as typeof fetch;
+}
 
 describe("route (controlador)", () => {
   it("rota aberta usa a ordem do OSRM com métricas viárias", async () => {
@@ -68,7 +76,7 @@ describe("route (controlador)", () => {
     const c = order("3");
     const r = await computeOptimizedRoute(
       { config: config({ respectTime: false }), stops: [stop(a, 1), stop(b, 2), stop(c, 3)] },
-      okFetch({ order: [0, 3, 2, 1] })
+      asFetch(okFetch({ order: [0, 3, 2, 1] }))
     );
     expect(r.stops.map((s) => s.order.number)).toEqual(["3", "2", "1"]);
     expect(r.engine).toBe("osrm-trip");
@@ -84,7 +92,7 @@ describe("route (controlador)", () => {
     const fetchFn = okFetch({ order: [0, 1, 2] });
     const r = await computeOptimizedRoute(
       { config: config({ roundTrip: true, respectTime: false }), stops: [stop(a, 1), stop(b, 2)] },
-      fetchFn
+      asFetch(fetchFn)
     );
     expect(String(fetchFn.mock.calls[0][0])).toContain("destination=first");
     expect(r.legs[r.legs.length - 1].point).toEqual(r.legs[0].point);
@@ -97,7 +105,7 @@ describe("route (controlador)", () => {
     const fetchFn = okFetch({ order: [0, 2, 1, 3] });
     const r = await computeOptimizedRoute(
       { config: config({ end, respectTime: false }), stops: [stop(a, 1), stop(b, 2)] },
-      fetchFn
+      asFetch(fetchFn)
     );
     expect(String(fetchFn.mock.calls[0][0])).toContain("destination=last");
     expect(r.stops.map((s) => s.order.number)).toEqual(["2", "1"]);
@@ -108,14 +116,14 @@ describe("route (controlador)", () => {
     const a = order("1");
     const r = await computeOptimizedRoute(
       { config: config({ respectTime: false }), stops: [stop(a, 1)] },
-      okFetch()
+      asFetch(okFetch())
     );
     expect(r.stops).toHaveLength(1);
     expect(r.totalKm).toBeGreaterThan(0);
   });
 
   it("sem OS válidas lança erro amigável", async () => {
-    await expect(computeOptimizedRoute({ config: config(), stops: [] }, okFetch())).rejects.toThrowError(
+    await expect(computeOptimizedRoute({ config: config(), stops: [] }, asFetch(okFetch()))).rejects.toThrowError(
       /Nenhuma OS/
     );
   });
@@ -125,7 +133,7 @@ describe("route (controlador)", () => {
     const b = order("2");
     const r = await computeOptimizedRoute(
       { config: config({ respectTime: false }), stops: [stop(a, 3), stop(b, 1)] },
-      failFetch
+      failFetchAs()
     );
     expect(r.engine).toBe("heuristic-2opt");
     expect(r.roadBased).toBe(false);
@@ -142,7 +150,7 @@ describe("route (controlador)", () => {
     const anchored = applyTimeAnchors(stops, { lat: 0, lng: 0 });
     expect(anchored.map((s) => s.order.number)).toEqual(["101", "103", "102"]);
 
-    const r = await computeOptimizedRoute({ config: config({ respectTime: true }), stops }, failFetch);
+    const r = await computeOptimizedRoute({ config: config({ respectTime: true }), stops }, failFetchAs());
     expect(r.stops.map((s) => s.order.number)).toEqual(["101", "103", "102"]);
     expect(r.timeWarnings).toEqual([]);
     expect(r.roadBased).toBe(false);
@@ -159,6 +167,6 @@ describe("route (controlador)", () => {
   it("usuário sem permissão: controlador só enxerga a lista recebida", async () => {
     // O controlador nunca busca OS por id — só ordena `stops` resolvidos pela tela
     // a partir do store isolado (RLS). Com lista vazia, recusa em vez de buscar.
-    await expect(computeOptimizedRoute({ config: config(), stops: [] }, failFetch)).rejects.toThrow();
+    await expect(computeOptimizedRoute({ config: config(), stops: [] }, failFetchAs())).rejects.toThrow();
   });
 });

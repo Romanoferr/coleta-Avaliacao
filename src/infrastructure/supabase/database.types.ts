@@ -35,6 +35,10 @@ export type OrderRow = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** Cache servidor de geocodificação (migration 00005). Nulo = não geocodificada. */
+  latitude: number | null;
+  longitude: number | null;
+  geocoded_at: string | null;
 }
 
 export type OrderInsert = {
@@ -51,6 +55,9 @@ export type OrderInsert = {
   notes?: string | null;
   status?: OrderStatusDb;
   status_history?: unknown;
+  latitude?: number | null;
+  longitude?: number | null;
+  geocoded_at?: string | null;
 }
 
 export type InspectionRow = {
@@ -120,6 +127,7 @@ export type DocumentInsert = {
 export type OrderUpdate = Partial<OrderInsert> & {
   status_history?: unknown;
   deleted_at?: string | null;
+  geocoded_at?: string | null;
 };
 
 export type InspectionUpdate = Partial<InspectionInsert> & {
